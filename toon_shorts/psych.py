@@ -417,7 +417,7 @@ def spill(ctx, world, t, lt, kw):
             ellipse(ctx, x, y, 14, 18)
             fill_stroke(ctx, hexc('#8a4f26'), OUTL, 3)
     # passer-by shoulder bumping in from the right
-    sx = SW + 200 - 520 * smooth((lt - bump + 0.25) / 0.25) + 700 * smooth((lt - bump - 0.1) / 0.4)
+    sx = SW + 200 - 760 * smooth((lt - bump + 0.25) / 0.25) + 900 * smooth((lt - bump - 0.1) / 0.4)
     ellipse(ctx, sx, 700, 260, 420)
     fill_stroke(ctx, hexc('#566079'), OUTL, 7)
     if bump < lt < bump + 0.35:
@@ -440,11 +440,18 @@ def eyes_montage(ctx, world, t, lt, kw):
     setc(ctx, hexc('#07070f'))
     ctx.paint()
     rnd = random.Random(21)
+    vert = engine.VERTICAL
     for i in range(14):
-        x, y = rnd.uniform(150, 1770), rnd.uniform(120, 960)
-        if abs(x - 960) < 260 and abs(y - 560) < 260:
-            x += 520 if x > 960 else -520
-        sz = rnd.uniform(0.6, 1.4)
+        if vert:
+            x, y = rnd.uniform(700, 1220), rnd.uniform(60, 1000)
+            if abs(x - 960) < 170 and 250 < y < 950:
+                x += 230 if x > 960 else -230
+            sz = rnd.uniform(0.45, 0.8)
+        else:
+            x, y = rnd.uniform(150, 1770), rnd.uniform(120, 960)
+            if abs(x - 960) < 260 and abs(y - 560) < 260:
+                x += 520 if x > 960 else -520
+            sz = rnd.uniform(0.6, 1.4)
         t_on = i * 0.1
         if lt < t_on:
             continue
@@ -627,3 +634,34 @@ def head_swish():
 def office_tone(d):
     t = _t(d)
     return lp(noise(len(t)), 250) * 0.10 + hp(lp(noise(len(t)), 3000), 800) * 0.01
+
+
+def stat_card_v(ctx, world, t, lt, kw):
+    """Full 1080x1920 result card: two bars growing upward."""
+    g = cairo.LinearGradient(0, 0, 0, H)
+    g.add_color_stop_rgb(0, *hexc('#14213d'))
+    g.add_color_stop_rgb(1, *hexc('#2b4a7a'))
+    ctx.set_source(g)
+    ctx.paint()
+    a = smooth(lt / 0.3)
+    ctx.save()
+    ctx.translate(W / 2, 560)
+    ctx.scale(1 + 0.2 * (1 - a), 1 + 0.2 * (1 - a))
+    outlined_text(ctx, 'The Spotlight', 0, 0, 104, hexc('#ffcf3f'), lw=10)
+    outlined_text(ctx, 'Effect', 0, 112, 104, hexc('#ffcf3f'), lw=10)
+    ctx.restore()
+    base = 1500
+    for i, (t_on, label, pct, col) in enumerate(((0.6, 'We think', 46, '#ff5a5a'), (1.5, 'Reality', 23, '#22c35e'))):
+        x = 330 + i * 420
+        text_center(ctx, label, x, base + 80, 56, (1, 1, 1))
+        if lt < t_on:
+            continue
+        u = smooth((lt - t_on) / 0.6)
+        h = 640 * pct / 46 * u
+        rrect(ctx, x - 120, base - h, 240, max(h, 20), 26)
+        fill_stroke(ctx, hexc(col), OUTL, 6)
+        outlined_text(ctx, f"{int(round(pct * u))}%", x, base - h - 30, 90, lw=10)
+    text_center(ctx, 'Gilovich et al. (2000)', W / 2, 1760, 30, (0.6, 0.65, 0.8), cairo.FONT_WEIGHT_NORMAL)
+
+
+engine.SCENES['stat_card_v'] = stat_card_v

@@ -117,6 +117,23 @@ def text_center(ctx, s, x, y, size, color=(1, 1, 1), weight=cairo.FONT_WEIGHT_BO
     ctx.show_text(s)
 
 
+VERTICAL = False
+
+
+def outlined_text(ctx, s, x, y, size, color=(1, 1, 1), stroke=(0, 0, 0), lw=12):
+    ctx.select_font_face("Inter", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(size)
+    ext = ctx.text_extents(s)
+    ctx.move_to(x - ext.x_advance / 2, y)
+    ctx.text_path(s)
+    setc(ctx, stroke)
+    ctx.set_line_width(lw)
+    ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+    ctx.stroke_preserve()
+    setc(ctx, color)
+    ctx.fill()
+
+
 class Key:
     """Keyframed value: Key([(t, v), ...]) with smoothstep (or 'lin'/'step') easing."""
 
@@ -1059,7 +1076,10 @@ SCENES = dict(pov=pov, side_mirror=side_mirror, rear_mirror=rear_mirror, dash=da
 
 # --------------------------------------------------------------- composer
 class Video:
-    def __init__(self, caption, world, shots, overlays=None):
+    def __init__(self, caption, world, shots, overlays=None, vertical=False):
+        global VERTICAL
+        VERTICAL = vertical
+        self.vertical = vertical        # True: scenes fill the 9:16 frame (camera follows shot 'fx')
         self.caption = caption          # list of lines
         self.world = world
         self.shots = shots
@@ -1079,6 +1099,8 @@ class Video:
     def frame(self, ctx, t):
         ctx.set_source_rgb(0, 0, 0)
         ctx.paint()
+        if self.vertical:
+            return self.frame_vertical(ctx, t)
         n = len(self.caption)
         size = 56
         y0 = SCENE_Y - 40 - (n - 1) * 70
@@ -1096,6 +1118,31 @@ class Video:
             if t0 <= t < t1:
                 fn(ctx, t - t0, t1 - t0)
         ctx.restore()
+
+    def frame_vertical(self, ctx, t):
+        s = self.shot_at(t)
+        lt = t - s.start
+        ctx.save()
+        ctx.set_line_cap(cairo.LINE_CAP_BUTT)
+        if s.kw.get('screen'):
+            SCENES[s.kind](ctx, self.world, t, lt, s.kw)
+        else:
+            k = H / SH
+            fx = s.kw.get('fx', SW / 2)
+            fx = fx(lt) if callable(fx) else fx
+            tx = min(0.0, max(W - SW * k, W / 2 - fx * k))
+            ctx.translate(tx, s.kw.get('fy', 0) * k)
+            ctx.scale(k, k)
+            SCENES[s.kind](ctx, self.world, t, lt, s.kw)
+            for t0, t1, fn in self.overlays:
+                if t0 <= t < t1:
+                    fn(ctx, t - t0, t1 - t0)
+        ctx.restore()
+        # title: outlined text near the top, safe from the Shorts UI
+        if s.kw.get('screen') or s.kw.get('no_title'):
+            return
+        for i, line in enumerate(self.caption):
+            outlined_text(ctx, line, W / 2, 230 + i * 84, 70)
 
     def render_still(self, t, path):
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, W, H)
