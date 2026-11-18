@@ -25,7 +25,7 @@ shots = [
     Shot(2.0, 'dash2', belt_warn=1),                                                               # 0
     Shot(1.6, 'face_day', expr='annoyed', belt=False),                                            # 1
     Shot(3.8, 'street_pov2', **P),                                                                 # 2
-    Shot(1.6, 'face_day', expr='scream', belt=False, shake=1.0,
+    Shot(1.6, 'face_day', expr='terror', belt=False, shake=1.0,
          lurch=Key([(0, 0), (0.15, 1), (0.6, 0.85), (1.6, 0.3)])),                                  # 3
     Shot(1.8, 'street_pov2', **P),                                                                 # 4
     Shot(1.6, 'face_day', expr='sad', belt=False),                                                 # 5

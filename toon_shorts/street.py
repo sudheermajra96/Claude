@@ -358,8 +358,20 @@ def street_scene(ctx, world, cam, t, kw, rear=False):
         ground_quad(ctx, cam, -6.0, -3.5, z0, z1, SIDEWALK)
         ground_quad(ctx, cam, 3.5, 3.75, z0, z1, CURB)
         ground_quad(ctx, cam, -3.75, -3.5, z0, z1, CURB)
-        ground_quad(ctx, cam, -0.18, -0.06, z0, z1, hexc('#f2c230'))
-        ground_quad(ctx, cam, 0.06, 0.18, z0, z1, hexc('#f2c230'))
+        dfrom = kw.get('dashed_from', 1e9)
+        dfrom = dfrom(t) if callable(dfrom) else dfrom
+        rd = (dfrom - ez) * sign if not rear else -1e9
+        zs1 = min(z1, rd)
+        if zs1 > z0:
+            ground_quad(ctx, cam, -0.18, -0.06, z0, zs1, hexc('#f2c230'))
+            ground_quad(ctx, cam, 0.06, 0.18, z0, zs1, hexc('#f2c230'))
+        if z1 > max(z0, rd):
+            k0 = int((ez + max(z0, rd)) // 9) - 1
+            for k in range(k0, k0 + int((z1 - max(z0, rd)) / 9) + 3):
+                a0, a1 = k * 9 - ez, k * 9 + 3.5 - ez
+                a0, a1 = max(a0, max(z0, rd)), min(a1, z1)
+                if a1 > a0:
+                    ground_quad(ctx, cam, -0.08, 0.08, a0, a1, hexc('#f2c230'))
     ground_quad(ctx, cam, -3.5, 3.5, za - 1.6, za, ASPH)
     ground_quad(ctx, cam, -3.5, 3.5, zb, zb + 1.6, ASPH)
     if not rear:

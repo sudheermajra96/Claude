@@ -939,10 +939,11 @@ EXPR = {
     'scream':  dict(brow=1.0, tilt=-0.6, eye=1.45, pupil=0.45, mouth='scream', mo=1.0),
     'relief':  dict(brow=0.4, tilt=-0.5, eye=0.7, pupil=1.0, mouth='wavy', mo=0.5),
     'sad':     dict(brow=0.3, tilt=-0.7, eye=0.75, pupil=1.0, mouth='frown', mo=0.5),
+    'terror':  dict(brow=1.0, tilt=-0.75, eye=1.4, pupil=0.4, mouth='aaah', mo=1.0),
     'whistle': dict(brow=0.3, tilt=-0.1, eye=0.9, pupil=1.0, mouth='pucker', mo=0.5),
     'drowsy':  dict(brow=-0.1, tilt=-0.2, eye=0.28, pupil=1.0, mouth='flat', mo=0.0),
-    'asleep':  dict(brow=-0.1, tilt=0.0, eye=0.06, pupil=1.0, mouth='o', mo=0.2),
-    'yawn':    dict(brow=0.35, tilt=-0.2, eye=0.1, pupil=1.0, mouth='scream', mo=1.0),
+    'asleep':  dict(brow=-0.1, tilt=0.0, eye=0.06, pupil=1.0, mouth='sleep', mo=0.2),
+    'yawn':    dict(brow=0.35, tilt=-0.2, eye=0.06, pupil=1.0, mouth='yawn', mo=1.0),
     'focus':   dict(brow=-0.1, tilt=0.3, eye=0.8, pupil=1.0, mouth='flat', mo=0.0),
 }
 
@@ -1082,6 +1083,27 @@ def face(ctx, world, t, lt, kw):
         ctx.line_to(cx + 60, my - 6)
         setc(ctx, OUTL)
         ctx.stroke()
+    elif m == 'aaah':
+        ctx.move_to(cx - 70, my - 35)
+        ctx.curve_to(cx - 95, my + 60, cx - 60, my + 120, cx, my + 120)
+        ctx.curve_to(cx + 60, my + 120, cx + 95, my + 60, cx + 70, my - 35)
+        ctx.curve_to(cx + 30, my - 55, cx - 30, my - 55, cx - 70, my - 35)
+        fill_stroke(ctx, hexc('#4a0f14'), OUTL, 7)
+        ellipse(ctx, cx, my + 92, 40, 20)
+        setc(ctx, hexc('#c94a55'))
+        ctx.fill()
+    elif m == 'yawn':
+        ellipse(ctx, cx, my + 20, 58, 85)
+        fill_stroke(ctx, hexc('#5e1419'), OUTL, 7)
+        ellipse(ctx, cx, my + 70, 34, 22)
+        setc(ctx, hexc('#d0545e'))
+        ctx.fill()
+    elif m == 'sleep':
+        ellipse(ctx, cx, my + 8, 22, 16)
+        fill_stroke(ctx, hexc('#5e1419'), OUTL, 5)
+        for i in range(3):
+            ph = (t * 0.5 + i / 3) % 1
+            text_center(ctx, 'z', cx + 200 + ph * 160, cy - 160 - ph * 260, 50 + 50 * ph, (1, 1, 1), a=math.sin(math.pi * ph))
     elif m == 'pucker':
         ellipse(ctx, cx + 6, my + 4, 20, 24)
         fill_stroke(ctx, hexc('#5e1419'), OUTL, 6)
@@ -1144,7 +1166,7 @@ def face(ctx, world, t, lt, kw):
         ellipse(ctx, 960 + s * 560, SH + 30, 95, 70, s * 0.4)
         fill_stroke(ctx, SKIN, OUTL, 6)
     # shock lines
-    if kw.get('expr') in ('scream', 'shock') and lt < 1.5:
+    if kw.get('expr') in ('scream', 'shock', 'terror') and lt < 1.5:
         for k in range(5):
             a = -math.pi / 2 + (k - 2) * 0.35
             r0 = 330 + 20 * math.sin(lt * 30 + k)

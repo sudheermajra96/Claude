@@ -444,10 +444,14 @@ def pov2(ctx, world, t, lt, kw):
             items.append((Z, lambda o=o, Z=Z: draw_vehicle_front(ctx, cam, o, t, o.X(t), Z)))
             g_ = (o.highbeam(t) + o.flash(t)) * clamp(1 - (Z - 8) / 90)
             glare = max(glare, g_)
+    for zf_, lines in kw.get('signs', []):
+        Z = zf_(t)
+        if 3 < Z < 400:
+            items.append((Z, lambda Z=Z, lines=lines: road_sign(ctx, cam, 6.4, Z, lines, lit(Z))))
     for _, fn in sorted(items, key=lambda it: -it[0]):
         fn()
     if glare > 0.01:
-        setc(ctx, (1, 0.98, 0.9), 0.55 * glare)
+        setc(ctx, (1, 0.98, 0.9), min(0.85, 0.75 * glare))
         ctx.paint()
     if kw.get('rain'):
         rain_fx(ctx, t, kw['rain'], key_or(kw, 'wiper', lt, None) if 'wiper' in kw else None)
@@ -459,6 +463,23 @@ def pov2(ctx, world, t, lt, kw):
             ctx.rectangle(0, SH - SH / 2 * e, SW, SH / 2 * e)
             ctx.fill()
     engine.cockpit(ctx, world, t, cam)
+
+
+def road_sign(ctx, cam, x, z, lines, lit=0.0):
+    """Green highway sign on two posts (right side)."""
+    lw = max(1.5, min(4, 50 / z))
+    x = x + 0.8
+    for px in (x - 1.8, x + 1.8):
+        b, tp = cam.p(px, 0, z), cam.p(px, 2.6, z)
+        w = 0.12 * cam.f / z
+        ctx.rectangle(b[0] - w / 2, tp[1], w, b[1] - tp[1])
+        fill_stroke(ctx, hexc('#7a7f90'), OUTL, lw)
+    a, b = cam.p(x - 2.9, 5.8, z), cam.p(x + 2.9, 2.5, z)
+    rrect(ctx, a[0], a[1], b[0] - a[0], b[1] - a[1], (b[0] - a[0]) * 0.05)
+    fill_stroke(ctx, brighten(hexc('#1f7a43'), lit * 2), (1, 1, 1), max(2, 4 * lw / 2))
+    h = b[1] - a[1]
+    for i, ln in enumerate(lines):
+        text_center(ctx, ln, (a[0] + b[0]) / 2, a[1] + h * (0.42 + 0.38 * i), h * (0.3 if i == 0 else 0.24), (1, 1, 1))
 
 
 def wiper_angle(t, period=1.1):
