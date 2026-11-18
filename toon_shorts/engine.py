@@ -118,6 +118,7 @@ def text_center(ctx, s, x, y, size, color=(1, 1, 1), weight=cairo.FONT_WEIGHT_BO
 
 
 VERTICAL = False
+COCKPIT_MIRROR = True   # draw the small side mirror on the dashboard (legacy episodes only)
 LAYER = 'all'          # 'all' | 'bg' | 'mid' | 'post' while rendering layered frames
 LAYERED_SCENES = set()  # scene kinds that split their drawing with layer()
 
@@ -567,8 +568,10 @@ def cockpit(ctx, world, t, cam):
     ctx.line_to(-10, SH + 10)
     ctx.close_path()
     fill_stroke(ctx, hexc('#2c2c3d'), hexc('#45455e'), 5)
-    # left mirror with live reflection
+    # left mirror with live reflection (legacy look; new episodes switch it off)
     mx, my = 120, 850
+    if not COCKPIT_MIRROR:
+        return cockpit_wheel(ctx, world, t)
     ellipse(ctx, mx, my, 205, 128, -0.08)
     fill_stroke(ctx, hexc('#1f4a86'), OUTL, 5)
     ctx.save()
@@ -582,6 +585,10 @@ def cockpit(ctx, world, t, cam):
     ctx.stroke()
     if world.blink_left(t) > 0.5:
         glow(ctx, mx - 150, my + 40, 120, AMBER, 0.9)
+    cockpit_wheel(ctx, world, t)
+
+
+def cockpit_wheel(ctx, world, t):
     # steering wheel + hands
     ang = clamp(world.steer(t) * 3.5, -0.3, 0.3)
     wx, wy = 960, 1230
@@ -932,6 +939,11 @@ EXPR = {
     'scream':  dict(brow=1.0, tilt=-0.6, eye=1.45, pupil=0.45, mouth='scream', mo=1.0),
     'relief':  dict(brow=0.4, tilt=-0.5, eye=0.7, pupil=1.0, mouth='wavy', mo=0.5),
     'sad':     dict(brow=0.3, tilt=-0.7, eye=0.75, pupil=1.0, mouth='frown', mo=0.5),
+    'whistle': dict(brow=0.3, tilt=-0.1, eye=0.9, pupil=1.0, mouth='pucker', mo=0.5),
+    'drowsy':  dict(brow=-0.1, tilt=-0.2, eye=0.28, pupil=1.0, mouth='flat', mo=0.0),
+    'asleep':  dict(brow=-0.1, tilt=0.0, eye=0.06, pupil=1.0, mouth='o', mo=0.2),
+    'yawn':    dict(brow=0.35, tilt=-0.2, eye=0.1, pupil=1.0, mouth='scream', mo=1.0),
+    'focus':   dict(brow=-0.1, tilt=0.3, eye=0.8, pupil=1.0, mouth='flat', mo=0.0),
 }
 
 
@@ -957,6 +969,11 @@ def face(ctx, world, t, lt, kw):
     rrect(ctx, 680 + jx * 0.3, 70, 560, 300, 120)
     fill_stroke(ctx, hexc('#46465c'), OUTL, 6)
     cx, cy = 960 + jx, 520
+    lurch = kw['lurch'](lt) if 'lurch' in kw else 0.0
+    ctx.save()
+    ctx.translate(960, 1000)
+    ctx.scale(1 + 0.22 * lurch, 1 + 0.22 * lurch)
+    ctx.translate(-960, -1000 - 70 * lurch)
     # body
     ctx.move_to(cx - 470, SH + 10)
     ctx.curve_to(cx - 470, 860, cx - 300, 790, cx, 790)
@@ -966,8 +983,9 @@ def face(ctx, world, t, lt, kw):
     poly(ctx, [(cx - 120, 795), (cx + 120, 795), (cx, 960)])
     fill_stroke(ctx, hexc('#f2efe6'), OUTL, 5)
     # seatbelt
-    poly(ctx, [(cx + 330, 800), (cx + 410, 830), (cx - 250, SH + 10), (cx - 360, SH + 10)])
-    fill_stroke(ctx, hexc('#2a2a33'), OUTL, 5)
+    if kw.get('belt', True):
+        poly(ctx, [(cx + 330, 800), (cx + 410, 830), (cx - 250, SH + 10), (cx - 360, SH + 10)])
+        fill_stroke(ctx, hexc('#2a2a33'), OUTL, 5)
     # neck
     ctx.rectangle(cx - 80, 700, 160, 110)
     fill_stroke(ctx, SKIN_SH, OUTL, 5)
@@ -1064,6 +1082,22 @@ def face(ctx, world, t, lt, kw):
         ctx.line_to(cx + 60, my - 6)
         setc(ctx, OUTL)
         ctx.stroke()
+    elif m == 'pucker':
+        ellipse(ctx, cx + 6, my + 4, 20, 24)
+        fill_stroke(ctx, hexc('#5e1419'), OUTL, 6)
+        for i in range(3):
+            ph = (t * 0.7 + i / 3) % 1
+            nx, ny = cx + 90 + ph * 260 + i * 10, my - 30 - ph * 320
+            a = math.sin(math.pi * ph)
+            for col, lw in ((OUTL, 15), ((1, 1, 1), 7)):
+                ctx.move_to(nx + 24, ny - 4)
+                ctx.line_to(nx + 24, ny - 90)
+                ctx.line_to(nx + 60, ny - 72)
+                setc(ctx, col, a)
+                ctx.set_line_width(lw)
+                ctx.stroke()
+            ellipse(ctx, nx, ny, 30, 22, -0.4)
+            fill_stroke(ctx, (1, 1, 1), OUTL, 5, a)
     elif m == 'frown':
         ctx.arc(cx, my + 50, 60, 1.25 * math.pi, 1.75 * math.pi)
         setc(ctx, OUTL)
@@ -1120,6 +1154,7 @@ def face(ctx, world, t, lt, kw):
         ctx.set_line_width(10)
         ctx.set_line_cap(cairo.LINE_CAP_ROUND)
         ctx.stroke()
+    ctx.restore()
 
 
 def rewind(ctx, world, t, lt, kw):

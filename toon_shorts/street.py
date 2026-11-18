@@ -4,6 +4,7 @@ from psych import *          # engine + life + psych SFX (sad_violin, success_ji
 from psych import _t
 import engine
 
+TICKET_TEXT = 'Ran a STOP sign'
 ZL = 200.0                 # world z of the stop line
 ZI = ZL + 10.5             # intersection centre
 DRIVER_X = 1.3             # driver position in the right lane
@@ -301,7 +302,7 @@ def ticket_paper(ctx, cx, cy, s, rot, lt, stamp_t=0.6):
     ctx.set_font_size(34)
     ctx.move_to(-150, 2)
     setc(ctx, OUTL)
-    ctx.show_text('Ran a STOP sign')
+    ctx.show_text(TICKET_TEXT)
     text_center(ctx, 'FINE', -90, 120, 56, OUTL)
     if lt >= stamp_t:
         a = smooth((lt - stamp_t) / 0.12)
@@ -372,7 +373,7 @@ def street_scene(ctx, world, cam, t, kw, rear=False):
     # depth-sorted objects
     items = []
     for side in (-1, 1):
-        for i, zz in enumerate(np.arange(-160, 520, 17)):
+        for i, zz in enumerate(np.arange(-160, 1600, 17)):
             if abs(zz - ZI) < 16:
                 continue
             z0 = rel(zz)
@@ -384,13 +385,13 @@ def street_scene(ctx, world, cam, t, kw, rear=False):
                 x0, x1 = (9, 17) if side > 0 else (-17, -9)
                 items.append((z0, lambda z0=z0, x0=x0, x1=x1, col=col, roof=roof, i=i:
                               house(ctx, cam, x0, x1, z0, z0 + 10, 4.2 + (i % 3) * 0.6, col, roof, i)))
-        for i, zz in enumerate(np.arange(-150, 520, 13)):
+        for i, zz in enumerate(np.arange(-150, 1600, 13)):
             if abs(zz - ZI) < 9:
                 continue
             z0 = rel(zz)
             if 1.8 < z0 < zf:
                 items.append((z0, lambda z0=z0, side=side, i=i: tree(ctx, cam, side * 6.6, z0, 0.9 + (i % 3) * 0.15, i)))
-    if not rear and rel(ZL) > 1.6:
+    if not rear and rel(ZL) > 1.6 and not kw.get('no_stop'):
         items.append((rel(ZL), lambda: stop_sign(ctx, cam, 4.7, rel(ZL))))
     for x, zz, col in kw.get('cross_cars', lambda t: [])(t):
         if 2 < rel(zz) < zf:
