@@ -1,0 +1,280 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}</style></head>
+<body>
+<script src="node_modules/three/build/three.min.js"></script>
+<script>
+// Low-poly 3D "merge onto the highway" scene. Everything is a deterministic function of time,
+// so frames can be rendered in any order: window.renderFrame(i) -> JPEG data URL.
+const W = 1280, H = 720, FPS = 30;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa8dcff);
+scene.fog = new THREE.Fog(0xbfe6ff, 140, 520);
+const camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 900);
+scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x6f9a55, 1.35));
+const sun = new THREE.DirectionalLight(0xfff3dc, 2.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 });
+sun.shadow.bias = -0.0006;
+scene.add(sun, sun.target);
+
+// ---------- helpers
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const lam = (c, o = {}) => new THREE.MeshLambertMaterial(Object.assign({ color: c, flatShading: true }, o));
+const smooth = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+function key(pts, t, ease = true) {
+  if (t <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [t0, v0] = pts[i - 1], [t1, v1] = pts[i];
+    if (t <= t1) { let u = (t - t0) / (t1 - t0); if (ease) u = smooth(u); return v0 + (v1 - v0) * u; }
+  }
+  return pts[pts.length - 1][1];
+}
+function box(w, h, d, mat, x, y, z, parent, cast = true) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z); m.castShadow = cast; m.receiveShadow = true;
+  (parent || scene).add(m); return m;
+}
+// flat ribbon along a polyline (for roads and painted lines)
+function ribbon(pts, width, mat, y = 0.02, offset = 0) {
+  const pos = [], idx = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1;
+    const nx = -dz / L, nz = dx / L;   // left normal
+    const w = typeof width === 'function' ? width(i / (pts.length - 1)) : width;
+    const cx = pts[i].x + nx * offset, cz = pts[i].z + nz * offset;
+    pos.push(cx - nx * w / 2, y, cz - nz * w / 2, cx + nx * w / 2, y, cz + nz * w / 2);
+    if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); return m;
+}
+function line(x0, z0, x1, z1, n = 2) { const a = []; for (let i = 0; i <= n; i++) a.push(new THREE.Vector3(x0 + (x1 - x0) * i / n, 0, z0 + (z1 - z0) * i / n)); return a; }
+
+// ---------- world
+const ROAD = lam(0x4b4e57), PAINT = lam(0xf4f4f0), YEL = lam(0xf2c230);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), lam(0x86c46a));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const LW = 3.7, ACC_END = -200, TAPER_END = -250;
+ribbon(line(-1.85 + 0.0, 260, -1.85, -1400, 4), 2 * LW + 2.0, ROAD, 0.02, 0);         // 2 main lanes + shoulder
+ribbon(line(5.55, 0, 5.55, ACC_END), LW, ROAD, 0.021);                                  // acceleration lane
+ribbon(line(5.55, ACC_END, 3.0, TAPER_END, 8), t => LW * (1 - t), ROAD, 0.021);         // taper
+// on-ramp curve
+const rampCurve = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(70, 0, 170), new THREE.Vector3(44, 0, 95), new THREE.Vector3(22, 0, 38), new THREE.Vector3(9, 0, 9),
+  new THREE.Vector3(5.55, 0, -4)]);
+const rampPts = rampCurve.getSpacedPoints(160);
+ribbon(rampPts, 4.4, ROAD, 0.022);
+ribbon(rampPts, 0.18, PAINT, 0.04, 2.0); ribbon(rampPts, 0.18, PAINT, 0.04, -2.0);
+// painted lines on the highway
+for (let z = 240; z > -1400; z -= 12) ribbon(line(0, z, 0, z - 4), 0.16, PAINT, 0.04);
+ribbon(line(-3.7, 260, -3.7, -1400), 0.18, YEL, 0.04);
+ribbon(line(3.7, 260, 3.7, 0), 0.18, PAINT, 0.04);
+for (let z = 0; z > TAPER_END; z -= 4) ribbon(line(3.7, z, 3.7, z - 2), 0.3, PAINT, 0.04);  // merge dashes
+ribbon(line(3.7, TAPER_END, 3.7, -1400), 0.18, PAINT, 0.04);
+ribbon(line(7.4, -4, 7.4, ACC_END), 0.18, PAINT, 0.04);
+ribbon(line(7.4, ACC_END, 3.7, TAPER_END, 6), 0.18, PAINT, 0.04);
+// median barrier + opposite carriageway
+const conc = lam(0xc9c9c2);
+for (let z = 250; z > -1400; z -= 20) box(0.5, 0.9, 20.2, conc, -5.0, 0.45, z - 10, null, true);
+ribbon(line(-11.0, 260, -11.0, -1400), 2 * LW + 1, ROAD, 0.02);
+for (let z = 240; z > -1400; z -= 12) ribbon(line(-11.0, z, -11.0, z - 4), 0.16, PAINT, 0.04);
+// guard rail on the far right after the taper
+const rail = lam(0xd8dce4);
+for (let z = TAPER_END; z > -1400; z -= 4) box(0.15, 0.3, 4.05, rail, 9.4, 0.7, z - 2, null, false);
+
+// windowed facade texture
+function facade(base) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = base; g.fillRect(0, 0, 64, 64);
+  g.fillStyle = 'rgba(40,70,110,0.75)';
+  for (let y = 6; y < 64; y += 16) for (let x = 6; x < 64; x += 16) g.fillRect(x, y, 9, 10);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const facadeCols = ['#f3e2c6', '#e9c9b3', '#d7e3ea', '#f0d48a', '#cfe1c4', '#e8b8a8', '#dad3f0'];
+const facades = facadeCols.map(facade);
+function building(x, z, w, d, h) {
+  const tex = facades[Math.floor(rnd() * facades.length)].clone(); tex.needsUpdate = true; tex.repeat.set(w / 5, h / 5);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ map: tex }));
+  m.position.set(x, h / 2, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  box(w * 1.02, 0.6, d * 1.02, lam(0x8d8f99), x, h + 0.3, z);
+}
+for (let z = 220; z > -1300; z -= 22 + rnd() * 10) {
+  building(-40 - rnd() * 20, z, 14 + rnd() * 10, 14 + rnd() * 6, 12 + rnd() * 34);
+  if (z < -40 || z > 200) building(32 + rnd() * 25, z, 14 + rnd() * 10, 14 + rnd() * 6, 10 + rnd() * 30);
+}
+const trunk = lam(0x7b5434), leaf = [lam(0x3f9a4c), lam(0x58b05a), lam(0x2f8a45)];
+function tree(x, z, s = 1) {
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.18 * s, 0.25 * s, 1.6 * s, 6), trunk);
+  t.position.set(x, 0.8 * s, z); t.castShadow = true; scene.add(t);
+  const f = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5 * s, 0), leaf[Math.floor(rnd() * 3)]);
+  f.position.set(x, 2.5 * s, z); f.castShadow = true; scene.add(f);
+}
+for (let z = 230; z > -1300; z -= 9 + rnd() * 8) {
+  tree(-17 - rnd() * 6, z, 0.9 + rnd() * 0.6);
+  const rx = z > -10 ? 30 + rnd() * 10 : 14 + rnd() * 8;
+  if (!(z > -8 && z < 150)) tree(rx, z, 0.9 + rnd() * 0.6);
+}
+for (let i = 0; i < 40; i++) { const p = rampCurve.getPoint(rnd()); tree(p.x + 9 + rnd() * 6, p.z + rnd() * 4, 1 + rnd() * 0.4); }
+for (let i = 0; i < 26; i++) { const p = rampCurve.getPoint(0.15 + rnd() * 0.8); if (p.x > 14) tree(p.x - 7 - rnd() * 5, p.z, 0.9 + rnd() * 0.4); }
+const pole = lam(0x9aa0aa);
+for (let z = 240; z > -1300; z -= 32) {
+  box(0.2, 7, 0.2, pole, -5.0, 4.4, z); box(2.2, 0.15, 0.3, pole, -3.9, 7.8, z);
+}
+
+// ---------- vehicles
+const glass = lam(0x23324a), tire = lam(0x1c1c22), chrome = lam(0xdddddd);
+function makeCar(color, kind = 'car') {
+  const g = new THREE.Group();
+  const body = lam(color), dark = lam(new THREE.Color(color).multiplyScalar(0.6));
+  const parts = {};
+  if (kind === 'truck') {
+    box(2.5, 2.6, 2.6, body, 0, 1.75, -5.6, g); box(2.3, 1.0, 0.1, glass, 0, 2.5, -6.95, g);
+    box(2.6, 3.4, 9.6, lam(0xf2f2f4), 0, 2.3, 0.6, g); box(2.62, 0.5, 9.62, lam(0x2f61c9), 0, 1.0, 0.6, g);
+    box(2.2, 0.4, 12.6, lam(0x2a2a30), 0, 0.5, -0.8, g);
+    for (const z of [-5.2, 2.5, 4.4]) for (const x of [-1.15, 1.15]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.45, 12), tire); w.rotation.z = Math.PI / 2; w.position.set(x, 0.55, z); w.castShadow = true; g.add(w);
+    }
+    parts.head = [box(0.5, 0.3, 0.1, lam(0xffffff, { emissive: 0xfff5cc, emissiveIntensity: 0.6 }), -0.9, 1.0, -6.92, g),
+                  box(0.5, 0.3, 0.1, lam(0xffffff, { emissive: 0xfff5cc, emissiveIntensity: 0.6 }), 0.9, 1.0, -6.92, g)];
+    parts.brake = [box(0.4, 0.25, 0.1, lam(0x8a1010, { emissive: 0xff2020, emissiveIntensity: 0.3 }), -1.0, 1.0, 5.45, g),
+                   box(0.4, 0.25, 0.1, lam(0x8a1010, { emissive: 0xff2020, emissiveIntensity: 0.3 }), 1.0, 1.0, 5.45, g)];
+  } else {
+    box(1.85, 0.62, 4.3, body, 0, 0.62, 0, g);
+    box(1.6, 0.55, 2.2, glass, 0, 1.2, 0.25, g);
+    box(1.62, 0.12, 2.0, body, 0, 1.52, 0.3, g);
+    box(1.87, 0.18, 4.32, dark, 0, 0.36, 0, g, false);
+    for (const z of [-1.35, 1.35]) for (const x of [-0.88, 0.88]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.3, 12), tire); w.rotation.z = Math.PI / 2; w.position.set(x, 0.36, z); w.castShadow = true; g.add(w);
+    }
+    parts.head = [box(0.42, 0.18, 0.06, lam(0xffffff, { emissive: 0xfff5cc, emissiveIntensity: 0.6 }), -0.62, 0.72, -2.16, g),
+                  box(0.42, 0.18, 0.06, lam(0xffffff, { emissive: 0xfff5cc, emissiveIntensity: 0.6 }), 0.62, 0.72, -2.16, g)];
+    parts.brake = [box(0.42, 0.18, 0.06, lam(0x8a1010, { emissive: 0xff2020, emissiveIntensity: 0.3 }), -0.62, 0.74, 2.16, g),
+                   box(0.42, 0.18, 0.06, lam(0x8a1010, { emissive: 0xff2020, emissiveIntensity: 0.3 }), 0.62, 0.74, 2.16, g)];
+    // indicators: front + rear, left (-x) and right (+x)
+    parts.blinkL = [box(0.22, 0.14, 0.08, lam(0x7a4a00, { emissive: 0xffa000, emissiveIntensity: 0 }), -0.86, 0.74, 2.17, g),
+                    box(0.22, 0.14, 0.08, lam(0x7a4a00, { emissive: 0xffa000, emissiveIntensity: 0 }), -0.86, 0.72, -2.17, g),
+                    box(0.06, 0.12, 0.3, lam(0x7a4a00, { emissive: 0xffa000, emissiveIntensity: 0 }), -0.94, 0.7, -1.6, g)];
+    box(0.5, 0.14, 0.04, chrome, 0, 0.5, 2.17, g, false);
+  }
+  scene.add(g);
+  return { g, parts };
+}
+
+// ---------- timeline
+const DUR = 27.6;
+const T_REW0 = 11.4, T_REW1 = 12.4;
+const pathPts = rampPts.slice().concat(line(5.55, -4, 5.55, -900, 180).slice(1));
+const pathLen = [0];
+for (let i = 1; i < pathPts.length; i++) pathLen.push(pathLen[i - 1] + pathPts[i].distanceTo(pathPts[i - 1]));
+let LR = 0;  // arc length where the ramp joins the acceleration lane (z = 0)
+for (let i = 1; i < pathPts.length; i++) if (pathPts[i].z <= 0 && pathPts[i - 1].z > 0) { LR = pathLen[i]; break; }
+function pathAt(s) {
+  let i = 1; while (i < pathPts.length - 1 && pathLen[i] < s) i++;
+  const u = Math.max(0, Math.min(1, (s - pathLen[i - 1]) / (pathLen[i] - pathLen[i - 1])));
+  return new THREE.Vector3().lerpVectors(pathPts[i - 1], pathPts[i], u);
+}
+const SPEED_A = [[0, 12], [11.4, 12]], SPEED_B = [[12.4, 12], [14.6, 12], [19.0, 25], [28, 25]];
+function integ(keys, t0, t1, s0) { let s = s0; const dt = 1 / 240; for (let t = t0; t < t1; t += dt) s += key(keys, t, false) * dt; return s; }
+const sCacheA = [], sCacheB = [];
+for (let i = 0; i <= 12 * 120; i++) sCacheA.push(i === 0 ? LR - 12 * 6.2 : sCacheA[i - 1] + key(SPEED_A, (i - 1) / 120, false) / 120);
+for (let i = 0; i <= 16 * 120; i++) sCacheB.push(i === 0 ? LR - 40 : sCacheB[i - 1] + key(SPEED_B, 12.4 + (i - 1) / 120, false) / 120);
+const isA = t => t < T_REW1;
+function playerS(t) {
+  if (isA(t)) return sCacheA[Math.min(sCacheA.length - 1, Math.round(Math.max(0, t) * 120))];
+  return sCacheB[Math.min(sCacheB.length - 1, Math.round((t - 12.4) * 120))];
+}
+function playerPos(t) {
+  const p = pathAt(playerS(t));
+  const lat = isA(t) ? key([[6.9, 0], [7.9, -3.7]], t) : key([[21.6, 0], [23.6, -3.7]], t);
+  if (p.z < -2) p.x += lat;
+  return p;
+}
+const blinkOn = t => (!isA(t) && t >= 12.9 && t < 24.0) ? (((t - 12.9) % 0.8) < 0.4) : false;
+// traffic: meters AHEAD of the player (negative = behind)
+const traffic = [
+  { car: makeCar(0xf6f6f6, 'truck'), x: 1.85, ahead: [[0, -110], [6, -35], [7.0, -16], [7.9, -7], [8.6, -5.5], [9.6, -9], [10.2, -24], [11.4, -40]], brake: [[7.3, 0], [7.4, 1], [11.4, 1]], scen: 'A' },
+  { car: makeCar(0xe9e9ef), x: -1.85, ahead: [[0, -60], [11.4, 120]], scen: 'A' },
+  { car: makeCar(0x3a7bd5), x: 1.85, ahead: [[12.4, -70], [17, -30], [19.0, -8], [20.2, 6], [21.6, 18], [24, 24], [28, 26]], scen: 'B' },
+  { car: makeCar(0x37b26c), x: 1.85, ahead: [[12.4, -150], [19, -75], [21.6, -40], [23.6, -28], [28, -26]], scen: 'B' },
+  { car: makeCar(0xf2f2f2), x: -1.85, ahead: [[12.4, -40], [28, 160]], scen: 'B' },
+  { car: makeCar(0x7a4fd0), x: -1.85, ahead: [[12.4, 60], [28, 230]], scen: 'B' },
+];
+const oncoming = [0xff8a3d, 0x2fb4c8, 0xd94b6a, 0xffffff, 0x555c70].map((c, i) => ({ car: makeCar(c), x: i % 2 ? -9.15 : -12.85, z0: -400 + i * 90 }));
+const player = makeCar(0xe8312f);
+
+function shake(t) { return isA(t) ? key([[7.4, 0], [7.6, 1], [9.4, 0.6], [10.2, 0]], t) : 0; }
+
+// ---------- cameras
+const UP = new THREE.Vector3(0, 1, 0);
+function heading(t) {
+  const a = playerPos(t - 0.15), b = playerPos(t + 0.15);
+  const d = b.sub(a); d.y = 0; if (d.length() < 1e-3) d.set(0, 0, -1); return d.normalize();
+}
+const CAMS = {
+  chase: (p, d, t) => [p.clone().addScaledVector(d, -9.5).add(new THREE.Vector3(0, 3.9, 0)), p.clone().addScaledVector(d, 10).add(new THREE.Vector3(0, 1, 0))],
+  drone: (p, d, t) => [p.clone().add(new THREE.Vector3(14, 26, 24)), p.clone().addScaledVector(d, 12)],
+  droneLow: (p, d, t) => [p.clone().add(new THREE.Vector3(9, 13, 2)), p.clone().add(new THREE.Vector3(-1, 0, 5))],
+  rear: (p, d, t) => { const L = new THREE.Vector3().crossVectors(UP, d); return [p.clone().addScaledVector(d, 6.5).addScaledVector(L, -1.6).add(new THREE.Vector3(0, 2.2, 0)), p.clone().addScaledVector(d, -12).add(new THREE.Vector3(0, 1.2, 0))]; },
+  tail: (p, d, t) => {
+    const L = new THREE.Vector3().crossVectors(UP, d);
+    const c = p.clone().addScaledVector(d, -2.1).addScaledVector(L, 0.8).add(new THREE.Vector3(0, 0.75, 0));
+    return [c.clone().addScaledVector(d, -2.4).addScaledVector(L, 1.9).add(new THREE.Vector3(0, 0.5, 0)), c];
+  },
+  wide: (p, d, t) => { const u = t - 24.4; return [p.clone().add(new THREE.Vector3(12, 9 + u * 7, 16 + u * 5)), p.clone().addScaledVector(d, 18)]; },
+};
+const SHOTS = [
+  [0, 3.6, 'chase'], [3.6, 5.4, 'drone'], [5.4, 7.3, 'chase'], [7.3, 8.9, 'rear'], [8.9, 10.2, 'droneLow'], [10.2, 11.4, 'chase'],
+  [12.4, 14.6, 'chase'], [14.6, 16.0, 'tail'], [16.0, 19.0, 'chase'], [19.0, 21.6, 'drone'], [21.6, 24.4, 'chase'], [24.4, 27.6, 'wide'],
+];
+const camAt = t => (SHOTS.find(s => t >= s[0] && t < s[1]) || SHOTS[SHOTS.length - 1])[2];
+
+function setWorld(t) {
+  const p = playerPos(t), d = heading(t);
+  player.g.position.copy(p);
+  player.g.rotation.y = Math.atan2(-d.x, -d.z);
+  const bl = blinkOn(t) ? 4.0 : 0;
+  player.parts.blinkL.forEach(m => m.material.emissiveIntensity = bl);
+  player.parts.brake.forEach(m => m.material.emissiveIntensity = 0.35);
+  const scen = isA(t) ? 'A' : 'B';
+  for (const tr of traffic) {
+    tr.car.g.visible = tr.scen === scen;
+    if (!tr.car.g.visible) continue;
+    tr.car.g.position.set(tr.x, 0, p.z - key(tr.ahead, t, false));
+    const br = tr.brake ? key(tr.brake, t, false) : 0;
+    tr.car.parts.brake.forEach(m => m.material.emissiveIntensity = 0.35 + 3.5 * br);
+    if (tr.car.parts.head) tr.car.parts.head.forEach(m => m.material.emissiveIntensity = (tr.brake && t > 7.3 && t < 9.0 && Math.floor(t * 6) % 2) ? 3 : 0.6);
+  }
+  for (const o of oncoming) { o.car.g.position.set(o.x, 0, ((o.z0 + 27 * t + 600) % 900) - 600 + p.z * 0); o.car.g.rotation.y = Math.PI; }
+  sun.position.copy(p).add(new THREE.Vector3(25, 50, 18)); sun.target.position.copy(p);
+  return [p, d];
+}
+
+window.DUR = DUR;
+window.renderAt = (t, src) => {
+  const st = src === undefined ? t : src;           // world time (differs from t during the rewind)
+  const [p, d] = setWorld(st);
+  const [eye, look] = CAMS[camAt(st)](p, d, st);
+  const sh = shake(st);
+  if (sh > 0) { eye.x += Math.sin(st * 61) * 0.25 * sh; eye.y += Math.sin(st * 47) * 0.2 * sh; }
+  camera.position.copy(eye); camera.lookAt(look);
+  renderer.render(scene, camera);
+  return renderer.domElement.toDataURL('image/jpeg', 0.93);
+};
+window.frameSrc = (i) => {
+  const t = i / FPS;
+  if (t >= T_REW0 && t < T_REW1) return 11.0 - 10.6 * ((t - T_REW0) / (T_REW1 - T_REW0));
+  return t;
+};
+window.ready = true;
+</script>
+</body></html>
