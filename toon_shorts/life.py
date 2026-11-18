@@ -295,7 +295,15 @@ def bedroom(ctx, world, t, lt, kw):
     clock_txt = kw.get('clock', lambda lt: '5:00')(lt)
     ringing = key_or(kw, 'ring', lt, 0) > 0.5
     alarm_clock(ctx, 260, 570, clock_txt, ringing, t, L)
-    if kw.get('phone', False):
+    taken = key_or(kw, 'taken', lt, 0) > 0.5
+    drawer = key_or(kw, 'drawer', lt, 0)
+    if drawer > 0.01:
+        ctx.rectangle(160, 660, 280, 60 + 40 * drawer)
+        setc(ctx, OUTL)
+        ctx.fill()
+        ctx.rectangle(140, 680 + 40 * drawer, 320, 70)
+        fill_stroke(ctx, mix(hexc('#3a2e48'), hexc('#b8855a'), L), OUTL, 6)
+    if kw.get('phone', False) and not taken:
         rrect(ctx, 330, 610, 90, 26, 6)
         fill_stroke(ctx, hexc('#111111'), OUTL, 3)
     # bed
@@ -342,12 +350,25 @@ def bedroom(ctx, world, t, lt, kw):
             ex = 'yawn' if 0.3 < lt < 1.6 else expr
         elif arms == 'reach':
             u = key_or(kw, 'reach', lt, 0.0)
-            hands = [(px - 130 + (300 - (px - 130)) * u, py - 10 + (500 - py) * u), (px + 120, py + 20)]
+            tx, ty = kw.get('reach_to', (300, 500))
+            rx, ry = kw.get('rest', (px - 130, py - 10))
+            hands = [(rx + (tx - rx) * u, ry + (ty - ry) * u), (px + 120, py + 20)]
             ex = expr
         else:
             hands = [(px - 110, py + 20), (px + 120, py + 20)]
             ex = expr
-        person(ctx, px, py, 0.95, t, ex, lean=sway, hands=hands, legs=False, head_rot=sway * 2)
+        holding = taken and kw.get('phone_mode') == 'grab'
+
+        def held_phone(ctx, hs):
+            hx, hy = hs[0]
+            rrect(ctx, hx - 40, hy - 85, 80, 150, 14)
+            fill_stroke(ctx, hexc('#111111'), OUTL, 4)
+            rrect(ctx, hx - 30, hy - 75, 60, 120, 8)
+            setc(ctx, hexc('#7fb2ff'))
+            ctx.fill()
+            glow(ctx, hx, hy - 40, 380, hexc('#5f8cff'), 0.45)
+        person(ctx, px, py, 0.95, t, ex, lean=sway, hands=hands, legs=False, head_rot=sway * 2,
+               prop=held_phone if holding else None, look=kw.get('look', (0, 0)))
         ctx.move_to(700, blanket_top)
         ctx.curve_to(900, blanket_top - 30, 1300, 610, 1520, 650)
         ctx.line_to(1520, 800)
@@ -386,7 +407,7 @@ def kitchen(ctx, world, t, lt, kw):
     px, py = 900, 640
     mouth = (px - 60, py - 230 * 0.95 - 120 * 0.95 + 175 * 0.475 + 30)
     hands = [(px - 120, py + 10), (px + 150 + (mouth[0] + 60 - px - 150) * u, py - 40 + (mouth[1] - py + 40) * u)]
-    level = 1 - clamp((lt - 0.8) / 1.2)
+    level = 1 - clamp((lt - kw.get('drain_t', 0.8)) / kw.get('drain_d', 1.2))
 
     def glass(ctx, hs):
         hx, hy = hs[1]
@@ -452,6 +473,9 @@ def desk(ctx, world, t, lt, kw):
             ctx.line_to(cx, cy + 130)
             ctx.stroke()
         prop = book
+    elif action == 'stress':
+        hands = [(px - 150, py - 400 + math.sin(t * 40) * 6), (px + 150, py - 400 - math.sin(t * 40) * 6)]
+        prop = lambda ctx, hs: None
     else:
         wx = math.sin(lt * 9) * 40 + (lt * 60) % 140
         hands = [(px - 160, py + 20), (px + 40 + wx, py + 30 + math.sin(lt * 23) * 6)]
@@ -469,7 +493,10 @@ def desk(ctx, world, t, lt, kw):
     # chair back
     rrect(ctx, px - 230, py - 420, 460, 520, 60)
     fill_stroke(ctx, mix(hexc('#2a2a40'), hexc('#5a6b8c'), L), OUTL, 6)
-    if action == 'write':
+    if action == 'stress':
+        sh = math.sin(t * 50) * 10
+        person(ctx, px + sh, py, 1.0, t, 'scream', hands=hands, legs=False, hand_bend=(-60, 60))
+    elif action == 'write':
         person(ctx, px, py, 1.0, t, ctx_expr, hands=hands, legs=False, look=(0.2, 1), head_rot=0.12, prop=None)
     else:
         person(ctx, px, py, 1.0, t, ctx_expr, hands=hands, legs=False, head_rot=nod, look=(0, 0.6), prop=None)
@@ -491,7 +518,7 @@ def desk(ctx, world, t, lt, kw):
     rrect(ctx, 1470, 780, 160, 26, 8)
     fill_stroke(ctx, hexc('#30344f'), OUTL, 4)
     prop(ctx, hands)
-    for i, hp in enumerate(hands):
+    for i, hp in enumerate(hands if action != 'stress' else []):
         ellipse(ctx, hp[0], hp[1], 30, 30)
         fill_stroke(ctx, SKIN, OUTL, 5)
     if action == 'write':
@@ -561,7 +588,7 @@ def park(ctx, world, t, lt, kw):
         setc(ctx, hexc('#bfa880'))
         ctx.fill()
     # runner
-    ph = t * 2 * math.pi * 1.4
+    ph = t * 2 * math.pi * kw.get('cadence', 1.4)
     bob = abs(math.sin(ph)) * 22
     px, py = 900, 640 - bob
     k = 0.95
