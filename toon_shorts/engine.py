@@ -291,7 +291,12 @@ EDGE = 3.75
 RAIL_X = 5.2
 
 
+DAY = False
+
+
 def draw_sky(ctx, hy, yaw, x0=0, x1=SW):
+    if DAY:
+        return draw_sky_day(ctx, hy, yaw, x0, x1)
     g = cairo.LinearGradient(0, hy - 600, 0, hy)
     g.add_color_stop_rgb(0, *SKY_TOP)
     g.add_color_stop_rgb(1, *SKY_HOR)
@@ -307,6 +312,33 @@ def draw_sky(ctx, hy, yaw, x0=0, x1=SW):
         ctx.move_to(-800, hy + 2)
         for x, h in pts:
             ctx.line_to(x + yaw * k, hy - h)
+        ctx.line_to(3000, hy + 2)
+        ctx.close_path()
+        setc(ctx, col)
+        ctx.fill()
+
+
+def draw_sky_day(ctx, hy, yaw, x0=0, x1=SW):
+    g = cairo.LinearGradient(0, hy - 600, 0, hy)
+    g.add_color_stop_rgb(0, *hexc('#5fb4f2'))
+    g.add_color_stop_rgb(1, *hexc('#cfeeff'))
+    ctx.set_source(g)
+    ctx.rectangle(x0 - 400, -50, x1 - x0 + 800, hy + 52)
+    ctx.fill()
+    glow(ctx, 1550 + yaw * 0.9, hy - 420, 300, hexc('#fff3c4'), 0.5)
+    ellipse(ctx, 1550 + yaw * 0.9, hy - 420, 60, 60)
+    setc(ctx, hexc('#fff6d8'))
+    ctx.fill()
+    for cx0, cy0, sc in ((300, 140, 1.0), (900, 90, 0.8), (1400, 200, 1.1), (1900, 120, 0.9)):
+        cx_ = (cx0 + yaw * 0.95) % (SW + 600) - 300
+        for dx, dy, r in ((0, 0, 60), (60, -25, 70), (130, 0, 55), (60, 15, 60)):
+            ellipse(ctx, cx_ + dx * sc, hy - 600 + cy0 + dy * sc + 100, r * sc, r * sc * 0.8)
+        setc(ctx, (1, 1, 1), 0.92)
+        ctx.fill()
+    for pts, col, k in ((MTN_A, hexc('#9cc9a0'), 0.95), (MTN_B, hexc('#6fae74'), 0.97)):
+        ctx.move_to(-800, hy + 2)
+        for x, h in pts:
+            ctx.line_to(x + yaw * k, hy - h * 0.6)
         ctx.line_to(3000, hy + 2)
         ctx.close_path()
         setc(ctx, col)
@@ -899,6 +931,7 @@ EXPR = {
     'shock':   dict(brow=0.9, tilt=-0.4, eye=1.35, pupil=0.55, mouth='o', mo=1.0),
     'scream':  dict(brow=1.0, tilt=-0.6, eye=1.45, pupil=0.45, mouth='scream', mo=1.0),
     'relief':  dict(brow=0.4, tilt=-0.5, eye=0.7, pupil=1.0, mouth='wavy', mo=0.5),
+    'sad':     dict(brow=0.3, tilt=-0.7, eye=0.75, pupil=1.0, mouth='frown', mo=0.5),
 }
 
 
@@ -1029,6 +1062,10 @@ def face(ctx, world, t, lt, kw):
     elif m == 'flat':
         ctx.move_to(cx - 60, my)
         ctx.line_to(cx + 60, my - 6)
+        setc(ctx, OUTL)
+        ctx.stroke()
+    elif m == 'frown':
+        ctx.arc(cx, my + 50, 60, 1.25 * math.pi, 1.75 * math.pi)
         setc(ctx, OUTL)
         ctx.stroke()
     elif m == 'wavy':
