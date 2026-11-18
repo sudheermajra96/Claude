@@ -62,6 +62,7 @@ def poly(ctx, pts):
 
 def ellipse(ctx, x, y, rx, ry, rot=0.0):
     ctx.save()
+    ctx.new_sub_path()
     ctx.translate(x, y)
     ctx.rotate(rot)
     ctx.scale(max(rx, 0.01), max(ry, 0.01))
