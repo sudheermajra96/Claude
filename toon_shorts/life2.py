@@ -119,17 +119,24 @@ def face_scene(ctx, world, t, lt, kw):
     L = key_or(kw, 'light', lt, 1.0)
     shake = key_or(kw, 'shake', lt, 0.0)
     jx = math.sin(t * 70) * 16 * shake
-    setc(ctx, light_wall(L))
-    ctx.paint()
-    window(ctx, 1280, 120, 460, 520, L, t)
-    if L > 0.5:
-        glow(ctx, 1500, 380, 700, hexc('#ffcf6b'), 0.35 * L)
+    if engine.layer('bg'):
+        setc(ctx, light_wall(L))
+        ctx.paint()
+        window(ctx, 1280, 120, 460, 520, L, t)
+        if L > 0.5:
+            glow(ctx, 1500, 380, 700, hexc('#ffcf6b'), 0.35 * L)
     cx = 860 + jx
-    ctx.move_to(cx - 470, SH + 10)
-    ctx.curve_to(cx - 470, 860, cx - 300, 790, cx, 790)
-    ctx.curve_to(cx + 300, 790, cx + 470, 860, cx + 470, SH + 10)
-    ctx.close_path()
+
+    def body_path():
+        ctx.move_to(cx - 470, SH + 10)
+        ctx.curve_to(cx - 470, 860, cx - 300, 790, cx, 790)
+        ctx.curve_to(cx + 300, 790, cx + 470, 860, cx + 470, SH + 10)
+        ctx.close_path()
+    if not engine.layer('mid'):
+        return face_post(ctx, t, lt, kw, cx, L)
+    body_path()
     fill_stroke(ctx, JACKET, OUTL, 6)
+    cel(ctx, body_path, (-120, -40), a=0.22, rim=(14, 10), rim_w=12)
     poly(ctx, [(cx - 120, 795), (cx + 120, 795), (cx, 960)])
     fill_stroke(ctx, hexc('#f2efe6'), OUTL, 5)
     ctx.rectangle(cx - 80, 700, 160, 110)
@@ -143,6 +150,15 @@ def face_scene(ctx, world, t, lt, kw):
         else:
             look = (0, 0.9)
     draw_head(ctx, cx, 500, 1.0, kw.get('expr', 'proud'), t, math.sin(t * 1.5) * 0.03, look)
+    if engine.LAYER == 'mid':
+        return face_mid_fx(ctx, t, lt, kw, cx, L)
+    face_mid_fx(ctx, t, lt, kw, cx, L)
+    face_post(ctx, t, lt, kw, cx, L)
+
+
+def face_post(ctx, t, lt, kw, cx, L):
+    if not engine.layer('post'):
+        return
     if kw.get('phone_glow'):
         setc(ctx, hexc('#05061a'), 0.55)
         ctx.paint()
@@ -160,6 +176,17 @@ def face_scene(ctx, world, t, lt, kw):
         setc(ctx, hexc('#9cc3ff'))
         ctx.fill()
         glow(ctx, cx, 960, 300, hexc('#7fb2ff'), 0.5)
+    red = key_or(kw, 'red', lt, 0.0)
+    if red > 0:
+        g = cairo.RadialGradient(960, 540, 300, 960, 540, 1150)
+        g.add_color_stop_rgba(0, 1, 0, 0, 0)
+        g.add_color_stop_rgba(1, 0.9, 0, 0.05, 0.6 * red)
+        ctx.set_source(g)
+        ctx.paint()
+
+
+
+def face_mid_fx(ctx, t, lt, kw, cx, L):
     if kw.get('sparkle'):
         for i in range(4):
             ph = (t * 0.8 + i * 0.25) % 1
@@ -179,13 +206,6 @@ def face_scene(ctx, world, t, lt, kw):
         ctx.set_line_width(12)
         ctx.set_line_cap(cairo.LINE_CAP_ROUND)
         ctx.stroke()
-    red = key_or(kw, 'red', lt, 0.0)
-    if red > 0:
-        g = cairo.RadialGradient(960, 540, 300, 960, 540, 1150)
-        g.add_color_stop_rgba(0, 1, 0, 0, 0)
-        g.add_color_stop_rgba(1, 0.9, 0, 0.05, 0.6 * red)
-        ctx.set_source(g)
-        ctx.paint()
 
 
 def clock_spin(ctx, world, t, lt, kw):
@@ -349,6 +369,7 @@ def split(ctx, world, t, lt, kw):
         ctx.show_text(label)
 
 
+engine.LAYERED_SCENES.update({'face_scene'})
 engine.SCENES.update(phone_close=phone_close, face_scene=face_scene, clock_spin=clock_spin, chaos=chaos,
                      rewind_seq=rewind_seq, split=split)
 

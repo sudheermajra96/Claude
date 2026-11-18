@@ -118,6 +118,42 @@ def text_center(ctx, s, x, y, size, color=(1, 1, 1), weight=cairo.FONT_WEIGHT_BO
 
 
 VERTICAL = False
+LAYER = 'all'          # 'all' | 'bg' | 'mid' | 'post' while rendering layered frames
+LAYERED_SCENES = set()  # scene kinds that split their drawing with layer()
+
+
+def layer(name):
+    return LAYER == 'all' or LAYER == name
+
+
+def cel(ctx, path_fn, off, a=0.22, rim=(10, 8), rim_a=0.35, rim_w=8, outline=6):
+    """Cel-shade the shape drawn by path_fn: shadow crescent away from a top-left light, rim light,
+    then re-stroke the outline."""
+    ctx.save()
+    path_fn()
+    ctx.clip()
+    ctx.new_path()
+    ctx.rectangle(-20000, -20000, 40000, 40000)
+    ctx.save()
+    ctx.translate(*off)
+    path_fn()
+    ctx.restore()
+    ctx.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+    ctx.set_source_rgba(0.16, 0.05, 0.14, a)
+    ctx.fill()
+    ctx.set_fill_rule(cairo.FILL_RULE_WINDING)
+    ctx.save()
+    ctx.translate(*rim)
+    path_fn()
+    ctx.restore()
+    ctx.set_source_rgba(1, 0.97, 0.9, rim_a)
+    ctx.set_line_width(rim_w)
+    ctx.stroke()
+    ctx.restore()
+    path_fn()
+    setc(ctx, OUTL)
+    ctx.set_line_width(outline)
+    ctx.stroke()
 
 
 def outlined_text(ctx, s, x, y, size, color=(1, 1, 1), stroke=(0, 0, 0), lw=12):
@@ -1076,9 +1112,10 @@ SCENES = dict(pov=pov, side_mirror=side_mirror, rear_mirror=rear_mirror, dash=da
 
 # --------------------------------------------------------------- composer
 class Video:
-    def __init__(self, caption, world, shots, overlays=None, vertical=False):
+    def __init__(self, caption, world, shots, overlays=None, vertical=False, layered=False):
         global VERTICAL
         VERTICAL = vertical
+        self.layered = layered
         self.vertical = vertical        # True: scenes fill the 9:16 frame (camera follows shot 'fx')
         self.caption = caption          # list of lines
         self.world = world
@@ -1126,6 +1163,10 @@ class Video:
         ctx.set_line_cap(cairo.LINE_CAP_BUTT)
         if s.kw.get('screen'):
             SCENES[s.kind](ctx, self.world, t, lt, s.kw)
+        elif self.layered and s.kind in LAYERED_SCENES:
+            ctx.restore()
+            self.frame_layered(ctx, s, t, lt)
+            ctx.save()
         else:
             k = H / SH
             fx = s.kw.get('fx', SW / 2)
@@ -1143,6 +1184,70 @@ class Video:
             return
         for i, line in enumerate(self.caption):
             outlined_text(ctx, line, W / 2, 230 + i * 84, 70)
+
+    def _cam(self, ctx, fx, fy, zoom):
+        k = H / SH * zoom
+        tx = min(0.0, max(W - SW * k, W / 2 - fx * k))
+        ty = (H - SH * k) / 2 + fy * (H / SH)
+        ctx.translate(tx, ty)
+        ctx.scale(k, k)
+
+    def frame_layered(self, ctx, s, t, lt):
+        """Multiplane render: blurred background, shaded characters with a soft drop shadow,
+        effects on top, slow push-in with parallax, dust motes and a vignette."""
+        global LAYER
+        fx = s.kw.get('fx', SW / 2)
+        fx = fx(lt) if callable(fx) else fx
+        fy = s.kw.get('fy', 0)
+        u = lt / s.dur
+        push = s.kw.get('push', 0.06)
+        par = s.kw.get('parallax', 0.5 if s.kind in ('face_scene', 'shocked_face', 'proud_end', 'spill') else 0.0)
+        zoom_fg = 1 + push * u
+        zoom_bg = 1 + push * u * (1 - par)
+        surfs = {}
+        for name in ('bg', 'mid', 'post'):
+            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, W, H)
+            c = cairo.Context(surf)
+            c.set_line_cap(cairo.LINE_CAP_BUTT)
+            fxl = SW / 2 + (fx - SW / 2) * (1 - par * 0.3) if name == 'bg' else fx
+            self._cam(c, fxl, fy, zoom_bg if name == 'bg' else zoom_fg)
+            LAYER = name
+            SCENES[s.kind](c, self.world, t, lt, s.kw)
+            surf.flush()
+            surfs[name] = surf
+        LAYER = 'all'
+        dof = s.kw.get('dof', 5)
+        if dof > 0:
+            _blur_surface(surfs['bg'], dof)
+        ctx.set_source_surface(surfs['bg'], 0, 0)
+        ctx.paint()
+        sh = _shadow_surface(surfs['mid'], 16, 0.35)
+        ctx.set_source_surface(sh, 16, 26)
+        ctx.paint()
+        ctx.set_source_surface(surfs['mid'], 0, 0)
+        ctx.paint()
+        ctx.set_source_surface(surfs['post'], 0, 0)
+        ctx.paint()
+        # dust motes drifting in front
+        rnd = random.Random(99)
+        ctx.save()
+        ctx.set_operator(cairo.OPERATOR_ADD)
+        for _ in range(26):
+            x0, y0, sp, r = rnd.uniform(0, W), rnd.uniform(0, H), rnd.uniform(15, 45), rnd.uniform(2, 6)
+            x = (x0 + math.sin(t * 0.6 + x0) * 30) % W
+            y = (y0 - t * sp) % H
+            g = cairo.RadialGradient(x, y, 0, x, y, r * 3)
+            g.add_color_stop_rgba(0, 1, 0.97, 0.85, 0.35)
+            g.add_color_stop_rgba(1, 1, 0.97, 0.85, 0)
+            ctx.set_source(g)
+            ctx.arc(x, y, r * 3, 0, 2 * math.pi)
+            ctx.fill()
+        ctx.restore()
+        g = cairo.RadialGradient(W / 2, H * 0.45, W * 0.35, W / 2, H * 0.45, H * 0.75)
+        g.add_color_stop_rgba(0, 0, 0, 0, 0)
+        g.add_color_stop_rgba(1, 0.02, 0.0, 0.06, 0.45)
+        ctx.set_source(g)
+        ctx.paint()
 
     def render_still(self, t, path):
         surf = cairo.ImageSurface(cairo.FORMAT_RGB24, W, H)
@@ -1431,3 +1536,30 @@ def indicator(mixer, t0, t1, gain=0.5, pan=-0.2):
         mixer.add(tick(hi), t, gain, pan)
         hi = not hi
         t += 0.4
+
+
+def _arr(surf):
+    return np.ndarray((surf.get_height(), surf.get_width(), 4), np.uint8, surf.get_data())
+
+
+def _blur_surface(surf, r):
+    from PIL import Image, ImageFilter
+    a = _arr(surf)
+    h, w = a.shape[:2]
+    img = Image.fromarray(a.copy()).resize((w // 2, h // 2), Image.BILINEAR)
+    img = img.filter(ImageFilter.GaussianBlur(r / 2)).resize((w, h), Image.BILINEAR)
+    a[:] = np.asarray(img)
+    surf.mark_dirty()
+
+
+def _shadow_surface(surf, r, strength):
+    from PIL import Image, ImageFilter
+    a = _arr(surf)
+    h, w = a.shape[:2]
+    al = Image.fromarray(a[..., 3].copy()).resize((w // 2, h // 2), Image.BILINEAR)
+    al = al.filter(ImageFilter.GaussianBlur(r / 2)).resize((w, h), Image.BILINEAR)
+    out = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
+    o = _arr(out)
+    o[..., 3] = (np.asarray(al) * strength).astype(np.uint8)
+    out.mark_dirty()
+    return out

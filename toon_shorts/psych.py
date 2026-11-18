@@ -288,15 +288,17 @@ def walk_pose(x, y, k, t, cadence=1.4, moving=True):
 
 
 def office(ctx, world, t, lt, kw):
-    office_bg(ctx)
+    if engine.layer('bg'):
+        office_bg(ctx)
     hx = key_or(kw, 'hero_x', lt, 900)
     hk = key_or(kw, 'hero_k', lt, 0.95)
     stare = key_or(kw, 'stare', lt, 0.0)
     spot = key_or(kw, 'spot', lt, 0.0)
     hide = key_or(kw, 'hide', lt, 0.0)
     moving = kw.get('walking', True)
-    for n in NPCS:
-        npc(ctx, n, t, hx, stare)
+    if engine.layer('bg'):
+        for n in NPCS:
+            npc(ctx, n, t, hx, stare)
     # hero (feet on the floor line)
     floor = 1040
     py = floor - 300 * hk
@@ -321,23 +323,27 @@ def office(ctx, world, t, lt, kw):
             ctx.fill()
             ctx.restore()
 
-    # shadow
-    ellipse(ctx, hx, floor + 14, 120 * hk, 18 * hk)
-    setc(ctx, (0, 0, 0), 0.18)
-    ctx.fill()
-    if kw.get('stain', True) and hide < 0.3:
+    if engine.layer('bg'):
+        ellipse(ctx, hx, floor + 14, 120 * hk, 18 * hk)
+        setc(ctx, (0, 0, 0), 0.18)
+        ctx.fill()
+    if not engine.layer('mid'):
+        pass
+    elif kw.get('stain', True) and hide < 0.3:
         # draw hero, then stain on top of torso, then arms again via prop trick
         person(ctx, hx, py, hk, t, kw.get('expr', 'calm'), hands=hands, feet=feet,
                prop=lambda ctx, hs: stain(ctx, chest[0], chest[1], 34 * hk, 7))
     else:
         person(ctx, hx, py, hk, t, kw.get('expr', 'calm'), hands=hands, feet=feet, prop=folder)
     head_y = py - 230 * hk - 120 * hk
-    if kw.get('sweat'):
+    if kw.get('sweat') and engine.layer('mid'):
         sx_, sy_ = hx + 125 * hk, head_y - 40 * hk + (t * 40) % 30
         ctx.move_to(sx_, sy_ - 28)
         ctx.curve_to(sx_ + 18, sy_, sx_ + 18, sy_ + 18, sx_, sy_ + 18)
         ctx.curve_to(sx_ - 18, sy_ + 18, sx_ - 18, sy_, sx_, sy_ - 28)
         fill_stroke(ctx, hexc('#8fd6ff'), OUTL, 3)
+    if not engine.layer('post'):
+        return
     # spotlight
     if spot > 0.01:
         top_w, bot_w = 90, 300 * hk + 60
@@ -373,11 +379,14 @@ def office(ctx, world, t, lt, kw):
 
 
 def spill(ctx, world, t, lt, kw):
-    office_bg(ctx)
-    for n in NPCS:
-        npc(ctx, n, t, 960, 0)
-    setc(ctx, (0.85, 0.9, 0.95), 0.55)
-    ctx.paint()
+    if engine.layer('bg'):
+        office_bg(ctx)
+        for n in NPCS:
+            npc(ctx, n, t, 960, 0)
+        setc(ctx, (0.85, 0.9, 0.95), 0.55 if engine.LAYER == 'all' else 0.3)
+        ctx.paint()
+    if not engine.layer('mid'):
+        return
     bump = kw.get('bump', 0.7)
     k = 1.7
     px, py = 900, 1120
@@ -432,6 +441,8 @@ def spill(ctx, world, t, lt, kw):
 
 def shocked_face(ctx, world, t, lt, kw):
     engine.SCENES['face_scene'](ctx, world, t, lt, dict(expr='shock', light=0.9, shake=Key([(0, 1), (0.8, 0.2)], 'lin')))
+    if not engine.layer('mid'):
+        return
     jx = math.sin(t * 70) * 16 * (1 - clamp(lt / 0.8)) * 0.8
     stain(ctx, 860 + 150 + jx, 930, 70, 7)
 
@@ -514,6 +525,7 @@ def stat_card(ctx, world, t, lt, kw):
     text_center(ctx, 'Gilovich, Medvec & Savitsky (2000)', 1620, 1050, 28, (0.6, 0.65, 0.8), cairo.FONT_WEIGHT_NORMAL)
 
 
+engine.LAYERED_SCENES.update({'office', 'spill', 'shocked_face'})
 engine.SCENES.update(office=office, spill=spill, shocked_face=shocked_face, eyes_montage=eyes_montage,
                      stat_card=stat_card)
 

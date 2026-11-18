@@ -17,16 +17,17 @@ shots = [
          hero_k=Key([(0, 0.95), (0.6, 0.95), (2.2, 0.62)]), expr='unsure', sweat=True),              # 4
     Shot(3.6, 'office', hero_x=860, walking=False, hero_k=0.62, hide=1, expr='unsure',
          fx=Key([(0, 860), (0.6, 860), (3.6, 1660)]),
-         spot=Key([(0, 1), (0.3, 1), (0.31, 0)], step), stare=Key([(0, 1), (0.3, 1), (0.6, 0)])),     # 5
+         spot=Key([(0, 1), (0.3, 1), (0.31, 0)], step), stare=Key([(0, 1), (0.3, 1), (0.6, 0)]), dof=1.5),  # 5
     Shot(3.4, 'office', hero_x=860, walking=False, hero_k=0.62, hide=1, expr='calm',
          fx=Key([(0, 260), (0.5, 260), (1.2, 680), (2.2, 1240), (2.9, 1660), (3.4, 1660)]),
-         bubbles=[0.25, 1.0, 2.0, 2.7]),                                                             # 6
+         bubbles=[0.25, 1.0, 2.0, 2.7], dof=0),                                                             # 6
     Shot(2.4, 'office', hero_k=Key([(0, 0.62), (0.8, 0.95)]), hide=Key([(0, 1), (0.9, 1), (1.2, 0)]),
          hero_x=walk_out, fx=walk_out, expr='happy'),                                                 # 7
     Shot(4.4, 'stat_card_v', screen=True),                                                           # 8
     Shot(2.2, 'proud_end', fx=930, fy=150),                                                                  # 9
 ]
-video = Video(["Everyone's staring", "at you?"], ep.world, shots, vertical=True)
+video = Video(["Everyone's staring", "at you?"], ep.world, shots, vertical=True,
+              layered='--flat' not in sys.argv)
 
 # reuse the episode's sound design with this cut's timing
 ep.shots, ep.video = shots, video

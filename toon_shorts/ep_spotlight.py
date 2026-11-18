@@ -6,10 +6,12 @@ from psych import *
 
 def proud_end(ctx, world, t, lt, kw):
     engine.SCENES['face_scene'](ctx, world, t, lt, dict(expr='happy', light=1.0, sparkle=True))
-    stain(ctx, 860 + 150, 930, 70, 7)
+    if engine.layer('mid'):
+        stain(ctx, 860 + 150, 930, 70, 7)
 
 
 engine.SCENES['proud_end'] = proud_end
+engine.LAYERED_SCENES.add('proud_end')
 
 world = World(dur=30, speed=const(0), camx=const(0))
 step = 'step'

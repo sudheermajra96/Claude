@@ -31,6 +31,7 @@ def draw_head(ctx, cx, cy, k, expr='calm', t=0.0, rot=0.0, look=(0, 0)):
         fill_stroke(ctx, SKIN, OUTL, 6)
     ellipse(ctx, 0, 0, 245, 270)
     fill_stroke(ctx, SKIN, OUTL, 7)
+    cel(ctx, lambda: ellipse(ctx, 0, 0, 245, 270), (-60, -50), a=0.2, rim=(14, 12), rim_w=12, outline=7)
     hairs = [(-200, -150, 85), (-120, -225, 95), (-20, -255, 100), (90, -240, 95), (180, -175, 85),
              (-230, -60, 55), (225, -70, 55), (40, -200, 90), (-80, -200, 90)]
     for hx, hy, r in hairs:
@@ -44,6 +45,13 @@ def draw_head(ctx, cx, cy, k, expr='calm', t=0.0, rot=0.0, look=(0, 0)):
         ctx.arc(hx, hy, r, 0, 2 * math.pi)
     setc(ctx, HAIR)
     ctx.fill()
+    for hx, hy, r in hairs[:6]:
+        ctx.new_sub_path()
+        ctx.arc(hx - r * 0.15, hy - r * 0.15, r * 0.55, math.pi * 1.05, math.pi * 1.55)
+    setc(ctx, (1, 0.85, 0.7), 0.28)
+    ctx.set_line_width(9)
+    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+    ctx.stroke()
     blink = 1.0
     if ((t + 0.7) % 3.3) < 0.12 and 0.3 < ex['eye'] < 1.3:
         blink = 0.1
@@ -168,6 +176,13 @@ def person(ctx, x, y, k, t, expr='calm', lean=0.0, hands=None, feet=None, head_r
     ctx.curve_to(105 * k, -230 * k, 110 * k, -120 * k, 95 * k, 10 * k)
     ctx.close_path()
     fill_stroke(ctx, JACKET, OUTL, 6)
+
+    def torso_path():
+        ctx.move_to(-95 * k, 10 * k)
+        ctx.curve_to(-110 * k, -120 * k, -105 * k, -230 * k, 0, -240 * k)
+        ctx.curve_to(105 * k, -230 * k, 110 * k, -120 * k, 95 * k, 10 * k)
+        ctx.close_path()
+    cel(ctx, torso_path, (-55 * k, -25 * k), a=0.22, rim=(9 * k, 7 * k), rim_w=7 * k)
     poly(ctx, [(-40 * k, -238 * k), (40 * k, -238 * k), (0, -190 * k)])
     fill_stroke(ctx, hexc('#f2efe6'), OUTL, 4)
     ctx.restore()
