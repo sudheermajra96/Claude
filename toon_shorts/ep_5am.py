@@ -53,7 +53,10 @@ video.overlays = [
 
 def sound():
     m = Mixer(video.dur)
-    m.add(music_bed(video.dur, bright_from=S[5]), 0, 1.0)
+    if '--music' in sys.argv:  # default: sound effects only
+        m.add(music_bed(video.dur, bright_from=S[5]), 0, 1.0)
+    else:
+        m.add(birds(video.dur - S[5], 5), S[5], 0.2, 0.4)
     m.add(crickets(E[1]), 0, 1.0)
     m.add(crickets(shots[4].dur), S[4], 1.0)
     m.add(alarm_beeps(1.7), S[1], 0.8, -0.3)

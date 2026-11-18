@@ -3,6 +3,7 @@ import sys
 
 from life2 import *
 
+MUSIC = '--music' in sys.argv  # default: sound effects only
 world = World(dur=32, speed=const(0), camx=const(0))
 PHONE_SPOT = (375, 600)
 
@@ -49,12 +50,17 @@ video.overlays = [
 def sound():
     m = Mixer(video.dur)
     # ---- music: tense pulse -> tape stop on the "late" hit; drop into happy groove after rewind
-    tense = tape_stop(music_tense(S[4], riser_from=S[3]))
-    m.add(tense, 0, 1.25)
-    happy = music_happy(video.dur - S[7])
-    fade = np.ones(len(happy))
-    fade[-int(0.6 * SR):] = np.linspace(1, 0, int(0.6 * SR))
-    m.add(happy * fade, S[7], 0.75)
+    if MUSIC:
+        tense = tape_stop(music_tense(S[4], riser_from=S[3]))
+        m.add(tense, 0, 1.25)
+        happy = music_happy(video.dur - S[7])
+        fade = np.ones(len(happy))
+        fade[-int(0.6 * SR):] = np.linspace(1, 0, int(0.6 * SR))
+        m.add(happy * fade, S[7], 0.75)
+    else:
+        # room tone instead of music: night crickets for A, morning birds for B
+        m.add(crickets(S[3]), 0, 1.2)
+        m.add(birds(video.dur - S[7], 9), S[7], 0.25, 0.4)
     # ---- transitions
     for i in (1, 2, 3, 5, 8, 9, 10, 11, 12):
         m.add(cut_whoosh(), S[i] - 0.12, 0.6)
