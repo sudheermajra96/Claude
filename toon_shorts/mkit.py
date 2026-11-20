@@ -131,6 +131,7 @@ class SegWorld(CityWorld):
         """segs: [(t0, t1, ego, others, peds)]"""
         super().__init__(dur, [s[:4] for s in segs], [], city, units)
         self.pseg = segs
+        self.police_flash = lambda t: 0.0
 
     def peds_at(self, t):
         for s in self.pseg:
