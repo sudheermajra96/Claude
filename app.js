@@ -99,3 +99,9 @@ fetch("data/dict.json")
   .catch(() => { out.innerHTML = `<p class="empty">Couldn't load the dictionary. Check your connection and reopen the app.</p>`; });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+
+// When a new version is installed, reload once so the update shows straight away.
+if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+}

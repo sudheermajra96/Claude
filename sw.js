@@ -1,7 +1,7 @@
 // Caches the whole app so it works offline after the first visit.
-const CACHE = "dict-v1";
+const CACHE = "dict-v2";
 const FILES = ["./", "index.html", "app.js", "manifest.webmanifest", "data/dict.json",
-  "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png"];
+  "a1.js", "practice.js", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -1,7 +1,13 @@
 # Dictionnaire — French → English
 
-A simple, black-themed French to English dictionary you can install on your iPhone.
+A simple, black-themed French learning app you can install on your iPhone.
 It works offline once installed.
+
+**Practice (home screen):** 268 A1-level words in 18 topics (greetings, numbers, food, family…),
+with flashcards and a multiple-choice quiz. Words you get right count as learned; progress is saved on the phone.
+The word list is in `a1.js`.
+
+**Dictionary:**
 
 - 8,500 French words with English translations, pronunciation (IPA), part of speech and gender
 - Accents optional: `etre` finds `être`
@@ -17,7 +23,7 @@ It works offline once installed.
 
 ## Hosting
 
-It's a static site (`index.html`, `app.js`, `sw.js`, `manifest.webmanifest`, `data/`, `icons/`), so any static host works.
+It's a static site (`index.html`, `app.js`, `a1.js`, `practice.js`, `sw.js`, `manifest.webmanifest`, `data/`, `icons/`), so any static host works.
 On GitHub: **Settings → Pages → Build and deployment → Deploy from a branch**, then pick the branch and `/ (root)`.
 
 ## Data
