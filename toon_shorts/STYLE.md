@@ -28,3 +28,12 @@ Approved reference: `ep_toronto_merge.py` (Toronto highway merge). Older single-
 3. Check faces read correctly (fear vs laugh, yawn, sleep, whistle pucker).
 4. No dashboard side mirror inside the car; emergency lights small; nothing tiny or hidden.
 5. Check the audio waveform: events must stand out from the bed.
+
+## Added rules (latest)
+- **Round tyres always** (`truckkit.wheel3`: tread band, sidewall, rim, nuts). Never flat square wheels.
+  Use `truckkit.tractor_det / trailer_det / draw_car_round` for vehicles.
+- **Hook in the first 3 seconds**: flash-forward to the most tense moment with a big question
+  ("Will it fit?"), heartbeat/riser SFX, then "Watch how a PRO does it" and the story.
+- **Engagement**: live on-screen meters where it fits (clearance, speed, gap), and an end question
+  that invites comments ("Could YOU drive this? Comment YES or NO").
+- Physics-based vehicle motion (kinematic sims) and collision/clearance checks before rendering.

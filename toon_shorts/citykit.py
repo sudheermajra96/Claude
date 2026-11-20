@@ -325,14 +325,14 @@ def building(ctx, view, x0, x1, z0, z1, h, col, win='#2d3f55', roof=None, floors
                 face_rect(ctx, view, Lf, face, a, b, y0, y0 + 1.6, d, wc)
 
 
-def conifer(ctx, view, x, z, s=1.0):
+def conifer(ctx, view, x, z, s=1.0, y=0.0):
     if view.ortho:
         p = view.pt((x, 0, z))
         r = 1.6 * s * view.s
         ellipse(ctx, p[0], p[1], r, r)
         fill_stroke(ctx, hexc('#2f6b3f'), OUTL, 3)
         return
-    b, sc = view.pt((x, 0, z)), view.scale((x, 0, z))
+    b, sc = view.pt((x, y, z)), view.scale((x, y, z))
     if not b or not sc:
         return
     lw = max(1, min(4, sc / 30))
@@ -448,10 +448,12 @@ def mountains(ctx, view, peaks, z, snow=True):
     """Distant mountain range: peaks = [(x, height), ...] at distance z (north)."""
     if view.ortho:
         return
-    pts = [view.pt((x, h, z)) for x, h in peaks]
-    pts = [p for p in pts if p]
-    if len(pts) < 2:
+    trip = [(x, h, view.pt((x, h, z))) for x, h in peaks]
+    trip = [(x, h, p) for x, h, p in trip if p]
+    if len(trip) < 2:
         return
+    peaks = [(x, h) for x, h, p in trip]
+    pts = [p for x, h, p in trip]
     base = view.pt((0, 0, z))
     if not base:
         return
@@ -467,6 +469,8 @@ def mountains(ctx, view, peaks, z, snow=True):
         for (x, h), p in zip(peaks, pts):
             if h > 0.75 * max(hh for _, hh in peaks):
                 sc = view.scale((x, h, z))
+                if not sc:
+                    continue
                 w = 160 * sc
                 poly(ctx, [(p[0], p[1]), (p[0] + w, p[1] + w * 0.6), (p[0] + w * 0.3, p[1] + w * 0.5),
                            (p[0] - w * 0.2, p[1] + w * 0.7), (p[0] - w, p[1] + w * 0.6)])
