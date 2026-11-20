@@ -11,9 +11,9 @@ const path = require('path');
   await page.goto('file://' + path.resolve('index.html'));
   await page.addScriptTag({ path: 'node_modules/three/build/three.min.js' });
   await page.evaluate(() => document.fonts.load('900 40px Inter'));
-  await page.addScriptTag({ path: 'scene.js' });
+  await page.addScriptTag({ path: process.env.SCENE || 'scene.js' });
   await page.waitForFunction(() => window.ready);
-  console.log(JSON.stringify(await page.evaluate(() => { const m = getMeta(); return { corners: m.corners, nm: m.nearMiss, traffic: m.traffic, end: m.simEndS, len: m.pathLen }; })));
+  console.log(JSON.stringify(await page.evaluate(() => { const m = getMeta(); delete m.audioLog; return m; })));
   const a = +fStart, b = +fEnd, st = +step;
   let ff = null;
   if (outFile.endsWith('.mp4')) {
@@ -29,7 +29,7 @@ const path = require('path');
     else fs.writeFileSync(`${outFile}_${String(f).padStart(3, '0')}.jpg`, buf);
     if (f % 30 === 0) console.log('frame', f, ((Date.now() - t0) / 1000).toFixed(1) + 's');
   }
-  fs.writeFileSync('meta.json', JSON.stringify(await page.evaluate(() => getMeta())));
+  fs.writeFileSync(process.env.META || 'meta.json', JSON.stringify(await page.evaluate(() => getMeta())));
   if (ff) { ff.stdin.end(); await new Promise((r) => ff.on('close', r)); }
   await browser.close();
 })();

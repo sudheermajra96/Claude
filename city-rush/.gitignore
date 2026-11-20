@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+meta*.json
+*_silent.mp4
+audio*.wav
+test/
