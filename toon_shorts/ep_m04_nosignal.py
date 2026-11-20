@@ -133,7 +133,7 @@ defs = [
     (18.6, 'm_cam', dict(cam='close_r', hud=False)),
     (21.6, 'm_top', dict(follow=False, zc=-18.0, xc=6.0, scale=24.0, post=gap_post)),
     (24.8, 'm_cam', dict(cam='fixed', pos=(-3.0, 3.6, -22.0), target=(6.0, 0.8, -4.0), f=1000)),
-    (28.0, 'm_cam', dict(cam='fixed', pos=(-1.5, 24, -75), target=(10, 0, 0), hud=False)),
+    (28.0, 'm_cam', dict(cam='fixed', pos=(0.0, 34, -58), target=(14, 0, 4), hud=False)),
 ]
 shots = build_shots(defs)
 shots[5].kw.update(srcs=list(reversed(shots[1:5])), dur=shots[5].dur)
