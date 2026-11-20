@@ -560,6 +560,9 @@ def draw_scene(ctx, view, w, t, ego=True, overlay=None, nums=None, ghost=None):
     for i, a in enumerate(w.others(t)):
         if not a.visible(t):
             continue
+        if hasattr(a, 'items'):
+            items += a.items(ctx, view, t)
+            continue
         x, z, h = a.pose(t)
         n = nums.get(i)
         if view.ortho:
@@ -567,7 +570,7 @@ def draw_scene(ctx, view, w, t, ego=True, overlay=None, nums=None, ghost=None):
         else:
             items.append(((x, 0.8, z), lambda x=x, z=z, h=h, a=a: draw_car_g(ctx, view, x, z, h, a.col, t, a.blink(t), a.brake(t),
                                                                               kind=getattr(a, 'kind', 'car'))))
-    for p in w.peds:
+    for p in (w.peds_at(t) if hasattr(w, 'peds_at') else w.peds):
         items.append(((p.x(t), 0.9, p.z(t)), lambda p=p: p.draw(ctx, view, t)))
     if ego and hasattr(w.ego(t), 'items'):
         items += w.ego(t).items(ctx, view, t)
