@@ -564,7 +564,9 @@ def draw_scene(ctx, view, w, t, ego=True, overlay=None, nums=None, ghost=None):
                                                                               kind=getattr(a, 'kind', 'car'))))
     for p in w.peds:
         items.append(((p.x(t), 0.9, p.z(t)), lambda p=p: p.draw(ctx, view, t)))
-    if ego:
+    if ego and hasattr(w.ego(t), 'items'):
+        items += w.ego(t).items(ctx, view, t)
+    elif ego:
         e = w.ego(t)
         x, z, h = e.pose(t)
         rev = isinstance(e, Kinematic) and e.is_reversing(t)
