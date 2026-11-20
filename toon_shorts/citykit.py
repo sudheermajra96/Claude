@@ -214,7 +214,8 @@ def draw_car_top_g(ctx, view, x, z, h, col, t, blink=None, ego=False, num=None):
     s = view.s
     ctx.save()
     ctx.translate(cx, cy)
-    ctx.rotate(math.atan2(-math.cos(h), math.sin(h)))
+    hr = h + getattr(view, 'hrot', 0.0)
+    ctx.rotate(math.atan2(-math.cos(hr), math.sin(hr)))
     Lr, Wr = 4.4 * s, 1.84 * s
     if ego:
         glow(ctx, 0, 0, 3.6 * s, hexc('#ffffff'), 0.45)
