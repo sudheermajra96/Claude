@@ -88,6 +88,28 @@
   .result { text-align:center; margin:40px 0 10px; }
   .result .emoji { font-size:56px; }
 
+  /* Vocab game */
+  .game-cta { display:flex; align-items:center; gap:14px; width:100%; text-align:left; margin-top:14px; padding:18px 16px;
+    border:1px solid #2c3d5c; border-radius:20px; background:linear-gradient(135deg,#14213a,#0b0b0b); }
+  .gc-emoji { font-size:40px; }
+  .gc-title { font-size:21px; font-weight:700; }
+  .gc-sub { color:var(--muted); font-size:14px; font-weight:400; margin-top:2px; }
+  .gc-play { background:var(--accent); color:#000; font-weight:700; border-radius:999px; padding:8px 16px; }
+  .level { display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:var(--card);
+    border:1px solid var(--line); border-radius:16px; padding:16px; margin-top:12px; }
+  .lvl { font-size:22px; font-weight:800; width:54px; height:54px; border-radius:14px; display:grid; place-items:center;
+    background:var(--card2); color:var(--accent); border:1px solid #2c3d5c; flex:none; }
+  #feedback { scroll-margin-bottom:calc(env(safe-area-inset-bottom) + 80px); }
+  .verdict { margin-top:18px; padding:12px 14px; border-radius:12px; font-weight:600; }
+  .verdict.good { background:#0f2a1a; color:var(--good); }
+  .verdict.bad { background:#2a1010; color:var(--bad); font-weight:400; }
+  .verdict.bad b { font-weight:700; }
+  .example { margin-top:10px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid var(--line); }
+  .ex-label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; }
+  .ex-fr { margin-top:4px; font-size:18px; font-style:italic; }
+  .ex-fr .say { position:static; vertical-align:middle; margin-left:4px; padding:2px 8px; }
+  .ex-en { color:var(--accent); margin-top:2px; }
+
   /* Tab bar */
   nav { position:fixed; left:0; right:0; bottom:0; z-index:2; display:flex; background:rgba(10,10,10,.92);
     -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border-top:1px solid var(--line);
@@ -101,7 +123,7 @@
 </head>
 <body>
 <section id="tab-practice">
-  <header><div class="bar-title"><button id="pback" aria-label="Back">‹</button><h1 id="ptitle">Learn French · A1</h1></div></header>
+  <header><div class="bar-title"><button id="pback" aria-label="Back">‹</button><h1 id="ptitle">Learn French</h1></div></header>
   <main id="pview"></main>
 </section>
 <section id="tab-dict" hidden>
@@ -122,6 +144,8 @@
 <script src="app.js"></script>
 <script src="a1.js"></script>
 <script src="practice.js"></script>
+<script src="levels.js"></script>
+<script src="game.js"></script>
 <script>
   document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("on", x === b));

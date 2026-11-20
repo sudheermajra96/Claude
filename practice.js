@@ -49,7 +49,11 @@ PBACK.addEventListener("click", () => back && back());
 
 function home() {
   const all = words.length, k = knownCount(words);
-  screen("Learn French · A1",
+  screen("Learn French",
+    `<button class="game-cta" data-go="levels"><span class="gc-emoji">🎮</span>` +
+    `<span class="tname"><span class="gc-title">Play vocab game</span><span class="gc-sub">4 choices · A1 · A2 · B1 · B2</span></span>` +
+    `<span class="gc-play">Play</span></button>` +
+    `<div class="section">A1 practice by topic</div>` +
     `<div class="hero"><div class="hero-top"><div><div class="big">${k} / ${all}</div><div class="meta">words learned</div></div>` +
     `<div class="pill">A1</div></div>${bar(k, all)}` +
     `<div class="row"><button class="btn" data-go="cards" data-t="all">🃏 Flashcards</button><button class="btn primary" data-go="quiz" data-t="all">✅ Quiz</button></div></div>` +
@@ -148,7 +152,7 @@ P.addEventListener("click", (e) => {
   const g = e.target.closest("[data-go]");
   if (!g) return;
   const t = g.dataset.t;
-  ({ topic, cards, quiz, back: (x) => exit(x)() })[g.dataset.go](t);
+  ({ topic, cards, quiz, back: (x) => exit(x)(), levels: gameLevels, play: gamePlay })[g.dataset.go](t);
 });
 
 home();

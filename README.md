@@ -3,7 +3,11 @@
 A simple, black-themed French learning app you can install on your iPhone.
 It works offline once installed.
 
-**Practice (home screen):** 268 A1-level words in 18 topics (greetings, numbers, food, family…),
+**Vocab game (home screen):** tap *Play vocab game*, pick a level (A1, A2, B1 or B2), and answer
+10 questions with 4 choices each. After every answer you see whether it was right, the correct meaning,
+and an example sentence. Best score per level is saved. 50 words per level, in `levels.js`.
+
+**A1 practice by topic:** 268 A1-level words in 18 topics (greetings, numbers, food, family…),
 with flashcards and a multiple-choice quiz. Words you get right count as learned; progress is saved on the phone.
 The word list is in `a1.js`.
 
@@ -23,7 +27,7 @@ The word list is in `a1.js`.
 
 ## Hosting
 
-It's a static site (`index.html`, `app.js`, `a1.js`, `practice.js`, `sw.js`, `manifest.webmanifest`, `data/`, `icons/`), so any static host works.
+It's a static site (`index.html`, `app.js`, `a1.js`, `practice.js`, `levels.js`, `game.js`, `sw.js`, `manifest.webmanifest`, `data/`, `icons/`), so any static host works.
 On GitHub: **Settings → Pages → Build and deployment → Deploy from a branch**, then pick the branch and `/ (root)`.
 
 ## Data
