@@ -53,7 +53,8 @@ def dash2(ctx, world, t, lt, kw):
     ctx.paint()
     rrect(ctx, 260, 110, 1400, 860, 180)
     fill_stroke(ctx, hexc('#11142a'), hexc('#2c3150'), 8)
-    spd = world.speed(t) * 3.6
+    mph = kw.get('unit') == 'mph' or getattr(world, 'units', '') == 'mph'
+    spd = world.speed(t) * (2.237 if mph else 3.6)
     cx, cy, R = 960, 560, 330
     a0, a1 = math.radians(135), math.radians(405)
     ctx.arc(cx, cy, R, a0, a1)
@@ -76,7 +77,7 @@ def dash2(ctx, world, t, lt, kw):
         text_center(ctx, str(v), cx + math.cos(a) * (R - 75), cy + math.sin(a) * (R - 75) + 12, 34,
                     hexc('#8d94c0'), cairo.FONT_WEIGHT_NORMAL)
     text_center(ctx, f"{int(round(spd))}", cx, cy + 50, 170, (1, 1, 1))
-    text_center(ctx, 'km/h', cx, cy + 120, 42, hexc('#8d94c0'), cairo.FONT_WEIGHT_NORMAL)
+    text_center(ctx, 'mph' if mph else 'km/h', cx, cy + 120, 42, hexc('#8d94c0'), cairo.FONT_WEIGHT_NORMAL)
     # turn arrows (outside the ring, top corners)
     for side, fn in ((-1, world.blink_left), (1, world.blink_right)):
         on = fn(t) > 0.5
