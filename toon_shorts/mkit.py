@@ -502,6 +502,8 @@ def ego_cam(w, t, mode, yaw=0.0):
         return look_at((x + fx * 9 + rx * 2.5, 1.6, z + fz * 9 + rz * 2.5), (x, 0.9, z), 950)
     if mode == 'side_l':
         return look_at((x - rx * 7 + fx * 1.0, 2.0, z - rz * 7 + fz * 1.0), (x + fx * 1.5, 0.9, z + fz * 1.5), 950)
+    if mode == 'outer':
+        return look_at((x + rx * 7.0 + fx * 8.0, 2.6, z + rz * 7.0 + fz * 8.0), (x + rx * 1.8, 0.7, z + rz * 1.8), 900)
     if mode == 'inside':
         return TCam((x - rx * 0.38 - fx * 0.2, 1.18, z - rz * 0.38 - fz * 0.2), h + yaw, 0.03, 1000, cy=470)
     raise ValueError(mode)
