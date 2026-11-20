@@ -175,33 +175,105 @@ def trailer_det(ctx, view, x, z, h, haz=False, rev=False, brake=False, col='#f4f
         f(ctx)
 
 
+def solid(ctx, view, Lf, bot, top, cols, lw):
+    """Convex 'frustum' solid from a bottom quad and a top quad (car-local, ordered back-left, back-right,
+    front-right, front-left). Back-face culled; returns the list of visible face names."""
+    B = [Lf(*p) for p in bot]
+    T = [Lf(*p) for p in top]
+    faces = {'back': [B[0], B[1], T[1], T[0]], 'right': [B[1], B[2], T[2], T[1]], 'front': [B[2], B[3], T[3], T[2]],
+             'left': [B[3], B[0], T[0], T[3]], 'top': [T[0], T[1], T[2], T[3]]}
+    cx = sum(p[0] for p in B + T) / 8
+    cy = sum(p[1] for p in B + T) / 8
+    cz = sum(p[2] for p in B + T) / 8
+    cam = view.pos
+    vis = []
+    for name, q in faces.items():
+        fx = sum(p[0] for p in q) / 4
+        fy = sum(p[1] for p in q) / 4
+        fz = sum(p[2] for p in q) / 4
+        nx, ny, nz = fx - cx, fy - cy, fz - cz          # outward (convex solid)
+        if (cam[0] - fx) * nx + (cam[1] - fy) * ny + (cam[2] - fz) * nz <= 0:
+            continue
+        if fill_poly(ctx, view, q, cols[name], OUTL, lw):
+            vis.append(name)
+    return vis
+
+
 def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False, lw=None, kind='car'):
-    """Passenger car with round tyres (replacement for citykit.draw_car_g)."""
+    """Passenger car with round tyres, a sloped greenhouse, bumpers and mirrors.
+    Tyres are drawn BEFORE the body when seen from behind/front (the body hides their tops),
+    and in front of dark wheel arches when seen from the side."""
     Lf = L(x, z, h)
     body = hexc(col)
-    dark = mix(body, (0, 0, 0), 0.3)
+    side_c = mix(body, (0, 0, 0), 0.22)
+    dark = hexc('#22232b')
     glass = hexc('#2a3448')
     d = view.depth((x, 0.8, z))
-    lw = lw or max(1.5, min(4.5, 60 / max(d, 1)))
-    far, near = wheels_split(view, Lf, h, x, z, [(sx * 0.8, wz, 0.34, 0.24, False) for wz in (-1.38, 1.38) for sx in (-1, 1)])
+    lw = lw or max(1.3, min(4.0, 60 / max(d, 1)))
+    ax = (math.cos(h), -math.sin(h))
+    vx, vz = view.pos[0] - x, view.pos[2] - z
+    vn = math.hypot(vx, vz) or 1.0
+    side_view = abs((vx * ax[0] + vz * ax[1]) / vn) > 0.55 and not view.ortho
+    specs = [(sx * 0.8, wz, 0.34, 0.24, False) for wz in (-1.38, 1.38) for sx in (-1, 1)]
+    far, near = wheels_split(view, Lf, h, x, z, specs)
     for f in far:
         f(ctx)
-    vis = lbox(ctx, view, Lf, h, -0.92, 0.92, 0.36, 0.9, -2.2, 2.2, {'front': body, 'back': body, 'left': dark, 'right': dark, 'top': body}, lw)
-    lbox(ctx, view, Lf, h, -0.78, 0.78, 0.9, 1.42, -1.25, 0.95, {'front': glass, 'back': glass, 'left': glass, 'right': glass, 'top': body}, lw)
+    if not side_view:
+        for f in near:
+            f(ctx)
+    lb = [(-0.92, 0.34, -2.2), (0.92, 0.34, -2.2), (0.92, 0.34, 2.2), (-0.92, 0.34, 2.2)]
+    lt_ = [(-0.92, 0.82, -2.15), (0.92, 0.82, -2.15), (0.92, 0.82, 2.05), (-0.92, 0.82, 2.05)]
+    vis = solid(ctx, view, Lf, lb, lt_, {'back': body, 'front': body, 'left': side_c, 'right': side_c, 'top': body}, lw)
+    gb = [(-0.84, 0.82, -1.45), (0.84, 0.82, -1.45), (0.84, 0.82, 1.05), (-0.84, 0.82, 1.05)]
+    gt = [(-0.72, 1.4, -1.05), (0.72, 1.4, -1.05), (0.72, 1.4, 0.45), (-0.72, 1.4, 0.45)]
+    gv = solid(ctx, view, Lf, gb, gt, {'back': glass, 'front': glass, 'left': glass, 'right': glass, 'top': body}, lw)
+    for face in ('left', 'right'):
+        if face in gv:          # B-pillar
+            sx = -1 if face == 'left' else 1
+            fill_poly(ctx, view, [Lf(sx * 0.8, 0.84, -0.28), Lf(sx * 0.8, 0.84, -0.12), Lf(sx * 0.7, 1.38, -0.22), Lf(sx * 0.7, 1.38, -0.36)], body)
     amb, off = AMBER, hexc('#7a4a00')
     sg = {'L': -1, 'R': 1}.get(blink)
+    if side_view:
+        for face, sx in (('left', -1), ('right', 1)):
+            if face in vis:
+                for wz in (-1.38, 1.38):
+                    pts = [Lf(sx * 0.925, 0.3 + 0.44 * max(0, math.sin(a)), wz + 0.46 * math.cos(a)) for a in np.linspace(0, math.pi, 12)]
+                    fill_poly(ctx, view, pts, dark)
+        for f in near:
+            f(ctx)
+    if not side_view:
+        # bottoms of the tyres peeking out under the bumper (seen from behind / in front)
+        for face, zt in (('back', -1.72), ('front', 1.72)):
+            if face in vis:
+                for sx in (-1, 1):
+                    fill_poly(ctx, view, [Lf(sx * 0.68, 0.0, zt), Lf(sx * 0.92, 0.0, zt), Lf(sx * 0.92, 0.34, zt), Lf(sx * 0.68, 0.34, zt)],
+                              hexc('#1d1d24'), OUTL, max(1, lw * 0.6))
+        solid(ctx, view, Lf, lb, [(-0.92, 0.82, -2.15), (0.92, 0.82, -2.15), (0.92, 0.82, 2.05), (-0.92, 0.82, 2.05)],
+              {'back': body, 'front': body, 'left': side_c, 'right': side_c, 'top': body}, lw)
+        solid(ctx, view, Lf, gb, gt, {'back': glass, 'front': glass, 'left': glass, 'right': glass, 'top': body}, lw)
     if 'back' in vis:
-        for s in (-1, 1):
-            face_rect(ctx, view, Lf, 'back', s * 0.62 - 0.2, s * 0.62 + 0.2, 0.64, 0.8, -2.21,
-                      hexc('#ff4040') if brake > 0.5 else hexc('#b01818'), RED if brake > 0.5 else None, 1.2)
-            face_rect(ctx, view, Lf, 'back', s * 0.8 - 0.1, s * 0.8 + 0.1, 0.62, 0.82, -2.22, amb if sg == s else off, amb if sg == s else None, 1.4)
-        face_rect(ctx, view, Lf, 'back', -0.25, 0.25, 0.44, 0.58, -2.21, hexc('#e8e8ee'))
+        for s_ in (-1, 1):
+            on = brake > 0.5
+            face_rect(ctx, view, Lf, 'back', s_ * 0.6 - 0.24, s_ * 0.6 + 0.24, 0.6, 0.76, -2.205,
+                      hexc('#ff4040') if on else hexc('#b01818'), RED if on else None, 1.2)
+            face_rect(ctx, view, Lf, 'back', s_ * 0.82 - 0.08, s_ * 0.82 + 0.08, 0.6, 0.76, -2.21,
+                      amb if sg == s_ else off, amb if sg == s_ else None, 1.4)
+        face_rect(ctx, view, Lf, 'back', -0.24, 0.24, 0.42, 0.55, -2.205, hexc('#eef0f4'))
+        if rev:
+            face_rect(ctx, view, Lf, 'back', -0.5, -0.36, 0.6, 0.72, -2.21, (1, 1, 1), WHITE_L, 1.0)
     if 'front' in vis:
-        for s in (-1, 1):
-            face_rect(ctx, view, Lf, 'front', s * 0.6 - 0.22, s * 0.6 + 0.22, 0.62, 0.78, 2.21, hexc('#fff6d8'), WHITE_L, 0.5)
-        face_rect(ctx, view, Lf, 'front', -0.35, 0.35, 0.45, 0.58, 2.21, hexc('#2a2c33'))
-    for face, s in (('left', -1), ('right', 1)):
+        for s_ in (-1, 1):
+            face_rect(ctx, view, Lf, 'front', s_ * 0.6 - 0.22, s_ * 0.6 + 0.22, 0.6, 0.75, 2.205, hexc('#fff6d8'), WHITE_L, 0.5)
+            face_rect(ctx, view, Lf, 'front', s_ * 0.85 - 0.06, s_ * 0.85 + 0.06, 0.6, 0.75, 2.21,
+                      amb if sg == s_ else off, amb if sg == s_ else None, 1.2)
+        face_rect(ctx, view, Lf, 'front', -0.32, 0.32, 0.45, 0.6, 2.205, dark)
+    # bumpers + mirrors
+    for zb, face in ((-2.24, 'back'), (2.24, 'front')):
         if face in vis:
-            face_rect(ctx, view, Lf, face, -1.0, 0.85, 0.5, 0.52, s * 0.93, mix(body, (0, 0, 0), 0.45))
-    for f in near:
-        f(ctx)
+            fill_poly(ctx, view, [Lf(-0.95, 0.28, zb), Lf(0.95, 0.28, zb), Lf(0.95, 0.42, zb), Lf(-0.95, 0.42, zb)], dark, OUTL, max(1, lw * 0.6))
+    for sx in (-1, 1):
+        c = Lf(sx * 1.02, 0.95, 0.95)
+        p, s2 = view.pt(c), view.scale(c)
+        if p and s2:
+            rrect(ctx, p[0] - 0.09 * s2, p[1] - 0.07 * s2, 0.18 * s2, 0.14 * s2, 0.04 * s2)
+            fill_stroke(ctx, body, OUTL, max(1, lw * 0.6))
