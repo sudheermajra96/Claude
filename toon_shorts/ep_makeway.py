@@ -676,21 +676,42 @@ def sound():
     inside = [(S[0], E[0]), (S[4], E[4]), (S[12], E[12])]
     for b in BEATS:
         if any(a <= b < c for a, c in inside):
-            m.add(beep(1000 if b < T_W1 + 1.2 else 880), b, 0.55)
+            m.add(beep(1000 if b < T_W1 + 1.2 else 880), b, 0.6)
         elif any(a <= b < c for a, c in ((S[7], E[7]), (S[15], E[15]))):
             pass
-    m.add(alarm(E[4] - S[4] - 0.6), S[4] + 0.6, 0.35)
-    # sirens (muffled inside the ambulance)
-    m.add(lp(ambulance_siren(3.0), 900), 0, 0.5)
-    m.add(ambulance_siren(E[7] - S[1]), S[1], 0.9)
-    m.add(lp(ambulance_siren(E[4] - S[4]), 900), S[4], 0.1)
+    m.add(alarm(E[4] - S[4] - 0.6), S[4] + 0.6, 0.25)
+    # siren level follows the shot: outside = loud, hero's window (music on) = faint, inside the ambulance =
+    # muffled, hospital = almost nothing, rewind = off
+    sir = ambulance_siren(video.dur)
+    n = len(sir)
+    tt = np.arange(n) / SR
+    ext, muf = np.zeros(n), np.zeros(n)
+    for sh in shots:
+        i0, i1 = int(sh.start * SR), min(n, int((sh.start + sh.dur) * SR))
+        if sh.kind in ('amb_follow', 'm_cam', 'm_top', 'rear_mirror'):
+            g_ext, g_muf = (0.42, 0) if sh.kw.get('cam') != 'fixed' else (0.06, 0)
+        elif sh.kind == 'hero_win':
+            g_ext, g_muf = 0.0, 0.12
+        elif sh.kind == 'amb_in':
+            g_ext, g_muf = 0.0, 0.16
+        elif sh.kind == 'hosp_face':
+            g_ext, g_muf = 0.0, 0.03
+        else:
+            g_ext, g_muf = 0.0, 0.0
+        if sh.start >= 33.0:
+            g_ext, g_muf = 0.0, 0.0                      # siren off once it has arrived
+        ext[i0:i1], muf[i0:i1] = g_ext, g_muf
+    k = int(0.15 * SR)
+    sm = np.ones(k) / k
+    ext, muf = np.convolve(ext, sm, 'same'), np.convolve(muf, sm, 'same')
+    m.add(sir * ext, 0, 1.0, -0.1)
+    m.add(lp(sir, 700) * muf * 2.0, 0, 1.0)
     m.add(heartbeat(3, 120), 0.1, 0.8)
     m.add(horn(0.6), S[3] + 1.2, 0.35, -0.2)
     m.add(screech(1.1, 1200), 13.0, 0.6)
     m.add(brake_squeal(1.0), 13.3, 0.5)
     m.add(sad_violin(), S[7] + 0.4, 0.9)
     m.add(rewind_sfx(1.2), S[8], 1.0)
-    m.add(ambulance_siren(E[13] - S[9], [1.0] * 8 + [0.95] * 2), S[9], 0.9)
     m.add(click(), T_SIG, 0.7)
     indicator(m, T_SIG, T_PULL + 1.4, 0.45, 0.2)
     m.add(brake_squeal(1.0), T_STOP - 1.0, 0.25)
