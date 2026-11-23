@@ -199,7 +199,7 @@ def solid(ctx, view, Lf, bot, top, cols, lw):
     return vis
 
 
-def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False, lw=None, kind='car'):
+def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False, lw=None, kind='car', occ=None):
     """Passenger car with round tyres, a sloped greenhouse, bumpers and mirrors.
     Tyres are drawn BEFORE the body when seen from behind/front (the body hides their tops),
     and in front of dark wheel arches when seen from the side."""
@@ -250,7 +250,44 @@ def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False,
                               hexc('#1d1d24'), OUTL, max(1, lw * 0.6))
         solid(ctx, view, Lf, lb, [(-0.92, 0.82, -2.15), (0.92, 0.82, -2.15), (0.92, 0.82, 2.05), (-0.92, 0.82, 2.05)],
               {'back': body, 'front': body, 'left': side_c, 'right': side_c, 'top': body}, lw)
-        solid(ctx, view, Lf, gb, gt, {'back': glass, 'front': glass, 'left': glass, 'right': glass, 'top': body}, lw)
+        gv = solid(ctx, view, Lf, gb, gt, {'back': glass, 'front': glass, 'left': glass, 'right': glass, 'top': body}, lw)
+    if occ and not view.ortho and gv:
+        # occupants: drawn ONLY inside the visible window glass (clip), then a light glass tint on top
+        quads = {'left': (gb[0], gb[3], gt[3], gt[0]), 'right': (gb[1], gb[2], gt[2], gt[1]),
+                 'front': (gb[3], gb[2], gt[2], gt[3]), 'back': (gb[0], gb[1], gt[1], gt[0])}
+        ctx.save()
+        ctx.new_path()
+        ok = False
+        for face in ('left', 'right', 'front', 'back'):
+            if face in gv:
+                pts = [view.pt(Lf(*q)) for q in quads[face]]
+                if all(pts):
+                    ctx.new_sub_path()
+                    ctx.move_to(*pts[0])
+                    for q in pts[1:]:
+                        ctx.line_to(*q)
+                    ctx.close_path()
+                    ok = True
+        if ok:
+            ctx.clip()
+            setc(ctx, hexc('#3b4658'))
+            ctx.paint()
+            occ(ctx, view, Lf, h)
+            setc(ctx, (0.75, 0.88, 1.0), 0.12)
+            ctx.paint()
+        ctx.restore()
+        for face in ('left', 'right', 'front', 'back'):
+            if face in gv:
+                pts = [view.pt(Lf(*q)) for q in quads[face]]
+                if all(pts):
+                    poly(ctx, pts)
+                    setc(ctx, OUTL)
+                    ctx.set_line_width(lw)
+                    ctx.stroke()
+        for face in ('left', 'right'):
+            if face in gv:
+                sx = -1 if face == 'left' else 1
+                fill_poly(ctx, view, [Lf(sx * 0.8, 0.84, -0.28), Lf(sx * 0.8, 0.84, -0.12), Lf(sx * 0.7, 1.38, -0.22), Lf(sx * 0.7, 1.38, -0.36)], body)
     if 'back' in vis:
         for s_ in (-1, 1):
             on = brake > 0.5
