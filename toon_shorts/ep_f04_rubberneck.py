@@ -4,7 +4,7 @@ from frustkit import *
 
 T_R = 7.0
 RS = spd((0, V), (T_R, V), (8.1, 12.0), (12.0, 12.0), (14.5, V), (99, V))
-HS = spd((0, V), (7.7, V), (9.0, 11.5), (12.4, 11.5), (14.8, V), (99, V))
+HS = spd((0, V), (8.0, V), (9.2, 11.5), (12.4, 11.5), (14.8, V), (99, V))
 
 
 def hero_expr(t):
@@ -39,7 +39,7 @@ defs = [
     (11.5, 'dash_face', dict(expr='annoyed', turn=lambda lt: 0.2 * math.sin(lt * 2))),
     (14.0, 'interior_mirror', dict()),
     (16.5, 'cine', dict(cam='heli', target=HERO, R=20.0, H=8.0, a0=-1.9, w=0.16, f=1000, oz=0.0)),
-    (19.0, 'cine', dict(cam='track', target=HERO, off=(3.4, 1.1, 2.0), look=(0, 0.9, 6.0), f=720, shake=0.06, streak=0.4)),
+    (19.0, 'cine', dict(cam='track', target=HERO, off=(-2.6, 1.6, 2.0), look=(0.4, 0.9, 7.0), f=720, shake=0.06, streak=0.4, flare=0.4)),
     (22.0, 'cine', dict(cam='crane', target=HERO, ox=6.0, oz0=-26.0, oz1=-36.0, y0=2.0, y1=22.0, tz=160.0, f=1000)),
 ]
 texts = dict(hook='She stops... to LOOK?!', loc='I-70, Golden, Colorado',
