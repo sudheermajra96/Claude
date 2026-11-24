@@ -6,22 +6,22 @@ from frustkit import *
 T_LC0, T_LC1 = 5.0, 6.4
 T_RB0, T_RB1 = 17.4, 18.8
 HS = spd((0, V), (14.2, V), (15.2, V - 5.0), (18.0, V - 5.0), (19.5, V), (99, V))
-HX = lane_key((0, 2), (T_LC0, 2), (T_LC1, 1), (T_RB0, 1), (T_RB1, 2), (99, 2))
+HX = lane_key((0, 2), (T_LC0, 2), (T_LC1, 1), (99, 1))
 
 
 def hero_expr(t):
     return 'calm' if t < 7.0 else ('worried' if t < 11.5 else ('focus' if t < 17.0 else 'smile'))
 
 
-HERO = hero_car(HX, HS, hero_expr, blink=blinks((4.3, T_LC1 + 0.3, 'L'), (16.8, T_RB1 + 0.3, 'R')))
+HERO = hero_car(HX, HS, hero_expr, blink=blinks((4.3, T_LC1 + 0.3, 'L')))
 RS = spd((0, 31.0), (7.0, 31.0), (7.6, V), (9.4, V), (10.2, V + 7.0), (11.2, V + 7.0), (12.0, V), (14.4, V), (15.6, 36.0), (99, 36.0))
 RX = lane_key((0, 1), (9.4, 1), (10.8, 0), (99, 0))
-RAGE = Veh(RX, RS, 12.0, HERO.z(12.0), '#c0392b', mark=lambda t: True,
+RAGE = Veh(RX, RS, 12.0, HERO.z(12.0), '#1c1c22', mark=lambda t: True,
            occ=occ_of('husb', lambda t: 'annoyed', look_fn=lambda t: 1.2 if 11.0 < t < 14.5 else 0.0),
            flash=lambda t: 7.0 < t < 9.4 and (t * 3) % 1 < 0.5)
 SEMI = Veh(LANES[2], const(24.0), 0.0, 45.0 + 15.5, '#2f6f9f', kind='semi', trailer=('#f4f4f6', '#d35400', 'SONORAN'), cab='#7a4fd0')
 TRAF = filler([(3, 20), (3, -50), (3, 120), (0, 160), (0, -120), (2, -110), (1, 200), (3, -160)], speed=V,
-              cols=[c for c in COLS if c not in ('#c0392b', '#e05d5d')])
+              cols=[c for c in COLS if c not in ('#1c1c22', '#e05d5d')])
 AG = [RAGE, SEMI] + TRAF + oncoming()
 EP.glare = lambda t: 7.0 < t < 9.4 and (t * 3) % 1 < 0.5
 
@@ -58,7 +58,6 @@ def sfx(m, S, E):
     m.add(heartbeat(4, 125), S[3] + 0.2, 0.55)
     m.add(v8(2.0, lambda u: 0.7 + 0.3 * min(1, u)), 15.0, 0.6)
     m.add(car_pass(1.3, 0.5, 120), 15.6, 0.6, pans(1.3, -0.7, 0.2))
-    indicator(m, 16.8, T_RB1 + 0.3, 0.4, 0.2)
     m.add(chime(), S[6] + 1.0, 0.5)
 
 
