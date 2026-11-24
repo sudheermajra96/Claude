@@ -33,10 +33,10 @@ SIDE = [Veh(LANES[l], const(VQ), 0.0, z + 7.0 * l, NOOR[(int(z) // 24 + l) % 9])
 WZ = WorkZone(Z_T, 60.0, 400.0)
 
 # ---------- wrong world: close the gap, she noses in, bump, everything stops
-HSW = spd((0, VQ), (12.6, VQ), (13.4, 11.5), (14.8, 11.5), (T_HIT, 6.0), (T_HIT + 0.6, 0.0), (99, 0.0))
+HSW = spd((0, VQ), (12.4, VQ), (13.2, 13.0), (14.6, 13.0), (T_HIT, 6.0), (T_HIT + 0.6, 0.0), (99, 0.0))
 HW = hero_car(const(LANES[2]), HSW, lambda t: 'calm' if t < 5 else ('annoyed' if t < T_HIT - 0.2 else 'shock'), damage=[('front', T_HIT)],
               blink=lambda t: 'B' if t > T_HIT + 1.5 and (t * 1.5) % 1 < 0.5 else None)
-MW = Veh(Key([(0, LANES[3]), (14.3, LANES[3]), (T_HIT, 10.62), (T_HIT + 0.5, 10.4), (99, 10.4)]),
+MW = Veh(Key([(0, LANES[3]), (14.3, LANES[3]), (T_HIT, 10.66), (99, 10.66)]),
          spd((0, VC), (11.0, VC), (12.2, VQ), (14.4, VQ), (T_HIT, 3.0), (T_HIT + 0.5, 0.0), (99, 0.0)), T_HIT, HW.z(T_HIT) + 4.0, '#f2a541',
          mark=lambda t: True, occ=occ_of('lady', lambda t: 'shock' if t > T_HIT - 0.3 else 'annoyed'), blink=blinks((11.0, 30.0, 'L')))
 FX = CrashFX(T_HIT, lambda t: (9.7, 0.6, HW.z(T_HIT) + 2.1), steam=0.4)
