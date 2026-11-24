@@ -1083,6 +1083,7 @@ def interior_mirror(ctx, w, t, lt, kw):
     """Driver's view of EP.hero (or kw car): road ahead, cockpit, rear-view mirror at the top.
     kw: blink (indicator arrow), mirror (bool), mirror_glow(t)."""
     H = kw.get('car', EP.hero)
+    t = t + kw.get('dt', 0.0)
     x, z, h = H.pose(t)
     view = TCam((x - 0.22, 1.2, z - 0.2), h, 0.03, kw.get('f', 820), cx=960, cy=880)
     draw_scene(ctx, view, w, t, ego=False)
@@ -1138,6 +1139,7 @@ def interior_mirror(ctx, w, t, lt, kw):
 def dash_face(ctx, w, t, lt, kw):
     """Dashboard camera looking back at the driver of EP.hero (or kw car). kw: who, expr (str or fn(lt)), turn."""
     H = kw.get('car', EP.hero)
+    t = t + kw.get('dt', 0.0)
     x, z, h = H.pose(t)
     setc(ctx, hexc('#1e1f27'))
     ctx.paint()
