@@ -13,7 +13,8 @@ def hero_expr(t):
 
 
 HERO = hero_car(const(LANES[2]), const(VQ), hero_expr)
-Q2 = [Veh(LANES[2], const(VQ), 0.0, SP_ * j, COLS[(j * 3) % 10]) for j in range(-4, 12) if j != 0]
+NOOR = [c for c in COLS if c != '#f2a541']
+Q2 = [Veh(LANES[2], const(VQ), 0.0, SP_ * j, NOOR[(j * 3) % 9]) for j in range(-4, 12) if j != 0]
 MERGE, MK = [], None
 for j in range(-4, 11):
     slot = SP_ * j + SP_ / 2
@@ -23,12 +24,12 @@ for j in range(-4, 11):
     sk = spd((0, VC), (tk - 2.6, VC), (tk - 1.6, VQ), (99, VQ))
     xk = lane_key((0, 3), (tk - 1.4, 3), (tk, 2), (99, 2))
     mine = j == 0
-    c = Veh(xk, sk, tk, Z_T, '#f2a541' if mine else COLS[(j * 7 + 4) % 10], blink=blinks((tk - 3.0, tk + 0.2, 'L')),
+    c = Veh(xk, sk, tk, Z_T, '#f2a541' if mine else NOOR[(j * 7 + 4) % 9], blink=blinks((tk - 3.0, tk + 0.2, 'L')),
             mark=(lambda t: True) if mine else None, occ=occ_of('lady', lambda t: 'smile') if mine else None)
     MERGE.append(c)
     if mine:
         MK = c
-SIDE = [Veh(LANES[l], const(VQ), 0.0, z + 7.0 * l, COLS[(int(z) // 24 + l) % 10]) for l in (0, 1) for z in np.arange(-60.0, 300.0, 24.0)]
+SIDE = [Veh(LANES[l], const(VQ), 0.0, z + 7.0 * l, NOOR[(int(z) // 24 + l) % 9]) for l in (0, 1) for z in np.arange(-60.0, 300.0, 24.0)]
 WZ = WorkZone(Z_T, 60.0, 400.0)
 AG = [WZ, MK] + [m for m in MERGE if m is not MK] + Q2 + SIDE + oncoming()
 
@@ -40,9 +41,9 @@ def lc_check():
 defs = [
     (3.0, 'cine', dict(cam='heli', target=HERO, R=30.0, H=18.0, a0=-0.5, w=0.1, f=1000, oz=14.0, dt=14.5)),
     (6.0, 'cine', dict(cam='heli', target=HERO, R=24.0, H=10.0, a0=0.6, w=-0.12, f=1000, oz=8.0)),
-    (9.0, 'cine', dict(cam='track', target=HERO, off=(-1.6, 1.4, -2.0), look=(3.0, 0.9, 10.0), f=700, shake=0.05, flare=0.4)),
+    (9.0, 'cine', dict(cam='track', target=HERO, off=(0.3, 2.7, -9.0), look=(2.6, 0.9, 16.0), f=740, shake=0.05, flare=0.4)),
     (11.5, 'dash_face', dict(expr='annoyed', turn=lambda lt: 0.4)),
-    (14.0, 'cine', dict(cam='top', center=(9.0, Z_T - 20.0), H=70.0, f=1000)),
+    (14.0, 'cine', dict(cam='top', center=(9.5, Z_T - 15.0), H=48.0, f=1000)),
     (16.5, 'cine', dict(cam='heli', target=HERO, R=26.0, H=14.0, a0=-0.4, w=0.08, f=1000, oz=12.0)),
     (19.0, 'interior_mirror', dict(f=900)),
     (22.0, 'cine', dict(cam='crane', target=HERO, ox=6.0, oz0=-26.0, oz1=-36.0, y0=2.0, y1=22.0, tz=60.0, f=1000)),

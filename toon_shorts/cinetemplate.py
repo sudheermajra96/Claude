@@ -610,7 +610,7 @@ def cone(ctx, view, x, z):
     w = 0.38 * s
     lw = max(1, min(3, s / 30))
     rrect(ctx, b[0] - w * 0.75, b[1] - 0.05 * s, w * 1.5, 0.1 * s, 0.02 * s)
-    fill_stroke(ctx, hexc('#222'), OUTL, lw)
+    fill_stroke(ctx, hexc('#222222'), OUTL, lw)
     poly(ctx, [(b[0] - w / 2, b[1]), (b[0] + w / 2, b[1]), (tp[0] + w * 0.1, tp[1]), (tp[0] - w * 0.1, tp[1])])
     fill_stroke(ctx, hexc('#ff7a1a'), OUTL, lw)
     y1 = b[1] + (tp[1] - b[1]) * 0.45
