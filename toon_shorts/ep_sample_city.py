@@ -26,7 +26,7 @@ DUR = 10.0
 defs = [
     (3.0, 'cine', dict(cam='heli', target=HERO, R=24.0, H=10.0, a0=-2.4, w=0.2, f=1000, oz=4.0)),
     (5.5, 'cine', dict(cam='track', target=HERO, off=(-3.2, 0.9, 6.0), look=(0, 0.9, -2.0), f=760, streak=0.6)),
-    (7.8, 'interior_mirror', dict(mirror=False)),
+    (7.8, 'interior_mirror', dict()),
     (DUR, 'cine', dict(cam='crane', target=HERO, ox=5.0, oz0=-25.0, oz1=-35.0, y0=2.0, y1=22.0, tz=160.0, f=1000)),
 ]
 video = make_video(['A calm drive into the city', 'Road Rules Animated'], world, defs, DUR)
@@ -34,7 +34,7 @@ S, E = video.S, video.E
 video.overlays = [
     (0.2, 3.0, location_tag('I-35E, Dallas, Texas')),
     (S[1] + 0.2, E[1], sq_caption('Easy speed. Safe gap. No stress.')),
-    (S[2] + 0.2, E[2], sq_caption('Eyes up, hands on the wheel')),
+    (S[2] + 0.2, E[2], sq_caption('Eyes up. Quick mirror check.')),
     (S[3] + 0.3, E[3], end_card('Drive calm, arrive calm.', 'Where do you drive every day? Comment!')),
 ]
 

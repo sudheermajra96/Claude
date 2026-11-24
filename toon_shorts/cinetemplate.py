@@ -532,84 +532,207 @@ def cine(ctx, w, t, lt, kw):
         kw['post'](ctx, view, tf, lt)
 
 
-def cabin(ctx, steer):
-    setc(ctx, hexc('#25262f'))
-    ctx.rectangle(-10, -10, CANVAS + 20, 240)
+# cockpit palette (glossy cartoon, dark navy-purple like the reference look)
+CK_DARK, CK_MID, CK_HI, CK_RED = hexc('#1b1828'), hexc('#2a2640'), hexc('#4d4870'), hexc('#ff3b4e')
+WHEEL_C = (560, 1580)           # steering wheel centre (left-hand drive: wheel left of the camera)
+MIRROR_R = (650, 40, 620, 175)  # rear-view mirror rect (x, y, w, h)
+
+
+def _dash_edge(ctx):
+    ctx.move_to(-10, 1290)
+    ctx.curve_to(400, 1262, 1520, 1262, CANVAS + 10, 1290)
+
+
+def cabin(ctx, steer, mph=None):
+    """Clean animated cockpit: thin roof, slanted A-pillars, glossy dash band with gauge hood, centre screen,
+    vents, red accent lights and a full steering wheel on the left (turns with steer)."""
+    # roof strip
+    ctx.move_to(-10, -10)
+    ctx.line_to(CANVAS + 10, -10)
+    ctx.line_to(CANVAS + 10, 60)
+    ctx.curve_to(1400, 22, 520, 22, -10, 60)
+    ctx.close_path()
+    setc(ctx, CK_DARK)
     ctx.fill()
-    poly(ctx, [(-10, 220), (260, 220), (90, 1560), (-10, 1560)])
-    ctx.fill()
-    poly(ctx, [(CANVAS + 10, 220), (CANVAS - 260, 220), (CANVAS - 90, 1560), (CANVAS + 10, 1560)])
-    ctx.fill()
-    ctx.move_to(-10, 1540)
-    ctx.curve_to(600, 1460, 1320, 1460, CANVAS + 10, 1540)
+    # A-pillars: slim diagonal wedges + door frame below them
+    for sg in (-1, 1):
+        def X(v):
+            return v if sg < 0 else CANVAS - v
+        poly(ctx, [(X(-10), 40), (X(90), 40), (X(420), 1300), (X(300), 1300), (X(-10), 260)])
+        g = cairo.LinearGradient(X(0), 0, X(420), 0)
+        g.add_color_stop_rgb(0, *CK_DARK)
+        g.add_color_stop_rgb(1, *CK_MID)
+        ctx.set_source(g)
+        ctx.fill()
+        ctx.move_to(X(90), 40)
+        ctx.line_to(X(420), 1300)
+        setc(ctx, CK_HI)
+        ctx.set_line_width(5)
+        ctx.stroke()
+        poly(ctx, [(X(-10), 1000), (X(120), 1060), (X(300), 1300), (X(-10), 1300)])
+        setc(ctx, CK_DARK)
+        ctx.fill()
+    # dashboard band
+    _dash_edge(ctx)
     ctx.line_to(CANVAS + 10, CANVAS + 10)
     ctx.line_to(-10, CANVAS + 10)
     ctx.close_path()
-    g = cairo.LinearGradient(0, 1460, 0, 1920)
-    g.add_color_stop_rgb(0, *hexc('#3a3b48'))
-    g.add_color_stop_rgb(1, *hexc('#1c1c24'))
+    g = cairo.LinearGradient(0, 1260, 0, 1920)
+    g.add_color_stop_rgb(0, *CK_MID)
+    g.add_color_stop_rgb(0.18, *mix(CK_MID, CK_DARK, 0.5))
+    g.add_color_stop_rgb(1, *mix(CK_DARK, (0, 0, 0), 0.3))
     ctx.set_source(g)
     ctx.fill()
+    _dash_edge(ctx)
+    setc(ctx, CK_HI)
+    ctx.set_line_width(6)
+    ctx.stroke()
+    # lower dash panel line
+    ctx.move_to(-10, 1440)
+    ctx.curve_to(500, 1420, 1420, 1420, CANVAS + 10, 1440)
+    setc(ctx, mix(CK_DARK, (0, 0, 0), 0.2))
+    ctx.set_line_width(4)
+    ctx.stroke()
+    wx, wy = WHEEL_C
+    # gauge hood behind the wheel
+    ctx.move_to(wx - 300, 1300)
+    ctx.curve_to(wx - 280, 1180, wx + 280, 1180, wx + 300, 1300)
+    ctx.close_path()
+    fill_stroke(ctx, CK_DARK, CK_HI, 4)
+    for gx in (wx - 130, wx + 130):
+        ellipse(ctx, gx, 1330, 92, 80)
+        fill_stroke(ctx, hexc('#0f0d18'), CK_HI, 3)
+        ctx.arc_negative(gx, 1330, 70, math.radians(200), math.radians(-20))
+        setc(ctx, CK_RED, 0.8)
+        ctx.set_line_width(5)
+        ctx.stroke()
+    if mph is not None:
+        a_ = math.radians(200 - 220 * clamp(mph / 140.0, 0, 1))
+        ctx.move_to(wx - 130, 1330)
+        ctx.line_to(wx - 130 + math.cos(a_) * 64, 1330 - math.sin(a_) * 64)
+        setc(ctx, (1, 1, 1))
+        ctx.set_line_width(5)
+        ctx.stroke()
+    # centre screen with a map route
+    rrect(ctx, 880, 1350, 330, 230, 26)
+    fill_stroke(ctx, hexc('#0d1424'), CK_HI, 5)
+    rrect(ctx, 900, 1368, 290, 194, 16)
+    setc(ctx, hexc('#18284a'))
+    ctx.fill()
+    ctx.move_to(990, 1545)
+    ctx.curve_to(1060, 1500, 990, 1450, 1080, 1400)
+    ctx.curve_to(1110, 1385, 1120, 1390, 1140, 1380)
+    setc(ctx, hexc('#4fa8ff'))
+    ctx.set_line_width(7)
+    ctx.stroke()
+    glow(ctx, 1045, 1465, 160, hexc('#4fa8ff'), 0.12)
+    # vents on the right
+    for vx in (1360, 1600):
+        rrect(ctx, vx - 100, 1360, 200, 110, 24)
+        fill_stroke(ctx, hexc('#120f1c'), CK_HI, 4)
+        for k in range(4):
+            ctx.move_to(vx - 80, 1380 + k * 22)
+            ctx.line_to(vx + 80, 1380 + k * 22)
+        setc(ctx, CK_MID)
+        ctx.set_line_width(6)
+        ctx.stroke()
+    # red accent knobs + strip
+    for kx in (960, 1130):
+        ellipse(ctx, kx, 1640, 30, 30)
+        fill_stroke(ctx, CK_DARK, CK_RED, 6)
+        glow(ctx, kx, 1640, 50, CK_RED, 0.25)
+    for i in range(4):
+        rrect(ctx, 930 + i * 64, 1720, 44, 14, 7)
+        setc(ctx, CK_RED, 0.85)
+        ctx.fill()
+    # steering wheel (full, on the left)
     ctx.save()
-    ctx.translate(960, 1990)
+    ctx.translate(wx, wy)
     ctx.rotate(steer * 0.5)
-    ellipse(ctx, 0, 0, 560, 430)
-    ellipse(ctx, 0, 0, 490, 365)
+    ellipse(ctx, 0, 0, 330, 310)
+    ellipse(ctx, 0, 0, 280, 262)
     ctx.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
-    fill_stroke(ctx, hexc('#15151c'), OUTL, 5)
+    fill_stroke(ctx, hexc('#14121e'), OUTL, 4)
     ctx.set_fill_rule(cairo.FILL_RULE_WINDING)
-    for s in (-1, 1):
-        ellipse(ctx, s * 520, -170, 90, 66, s * 0.5)
-        fill_stroke(ctx, SKIN, OUTL, 5)
+    ctx.arc(0, 0, 305, math.radians(205), math.radians(335))
+    setc(ctx, CK_HI)
+    ctx.set_line_width(6)
+    ctx.stroke()
+    for ang in (180, 0, 90):                # spokes: left, right, bottom
+        r_ = math.radians(ang)
+        ctx.save()
+        ctx.rotate(-r_ + math.pi / 2 if ang == 90 else 0)
+        if ang == 90:
+            poly(ctx, [(-50, 60), (50, 60), (36, 285), (-36, 285)])
+        else:
+            sx = -1 if ang == 180 else 1
+            poly(ctx, [(sx * 60, -40), (sx * 285, -22), (sx * 285, 30), (sx * 60, 50)])
+        fill_stroke(ctx, hexc('#1c1929'), OUTL, 3)
+        ctx.restore()
+    ellipse(ctx, 0, 0, 105, 95)
+    fill_stroke(ctx, hexc('#221e33'), CK_HI, 4)
+    ellipse(ctx, 0, -4, 34, 30)
+    fill_stroke(ctx, hexc('#b8bccb'), OUTL, 3)
+    for sx in (-1, 1):
+        for k in range(2):
+            ellipse(ctx, sx * (150 + k * 50), 5, 14, 14)
+            setc(ctx, CK_RED)
+            ctx.fill()
     ctx.restore()
 
 
 def interior_mirror(ctx, w, t, lt, kw):
-    """Driver's view of EP.hero (or kw car): road ahead + rear-view mirror. kw: blink (indicator arrow), mirror (bool)."""
+    """Driver's view of EP.hero (or kw car): road ahead, cockpit, rear-view mirror at the top.
+    kw: blink (indicator arrow), mirror (bool), mirror_glow(t)."""
     H = kw.get('car', EP.hero)
     x, z, h = H.pose(t)
-    view = TCam((x - 0.38, 1.18, z - 0.2), h, 0.04, kw.get('f', 900), cx=960, cy=1060)
+    view = TCam((x - 0.22, 1.2, z - 0.2), h, 0.03, kw.get('f', 820), cx=960, cy=880)
     draw_scene(ctx, view, w, t, ego=False)
     warm_haze(ctx, view, CANVAS)
     sun_flare(ctx, view, CANVAS, CANVAS, 0.8)
-    cabin(ctx, H.steer(t))
+    cabin(ctx, H.steer(t), H.speed(t) * 2.237)
     if kw.get('mirror', True):
-        ctx.move_to(960, 220)
-        ctx.line_to(960, 300)
-        setc(ctx, hexc('#25262f'))
-        ctx.set_line_width(30)
+        mx, my, mw, mh = MIRROR_R
+        ctx.move_to(960, 0)
+        ctx.line_to(960, my + 10)
+        setc(ctx, CK_DARK)
+        ctx.set_line_width(26)
         ctx.stroke()
-        rrect(ctx, 470, 290, 980, 340, 70)
-        fill_stroke(ctx, hexc('#25262f'), OUTL, 6)
+        rrect(ctx, mx, my, mw, mh, 60)
+        fill_stroke(ctx, CK_DARK, OUTL, 5)
         ctx.save()
-        rrect(ctx, 500, 318, 920, 284, 50)
+        rrect(ctx, mx + 18, my + 16, mw - 36, mh - 32, 46)
         ctx.clip()
-        mc = TCam((x, 1.3, z - 0.6), h + math.pi, 0.03, 820, cx=960, cy=470, mirror=True)
+        mc = TCam((x, 1.3, z - 0.6), h + math.pi, 0.03, 560, cx=960, cy=my + mh * 0.55, mirror=True)
         draw_scene(ctx, mc, w, t, ego=False)
-        g = cairo.LinearGradient(500, 318, 1420, 602)
-        g.add_color_stop_rgba(0, 1, 1, 1, 0.14)
+        g = cairo.LinearGradient(mx, my, mx + mw, my + mh)
+        g.add_color_stop_rgba(0, 1, 1, 1, 0.16)
         g.add_color_stop_rgba(0.5, 1, 1, 1, 0.0)
         ctx.set_source(g)
         ctx.paint()
         ctx.restore()
+        rrect(ctx, mx + 4, my + 4, mw - 8, mh - 8, 56)
+        setc(ctx, CK_HI)
+        ctx.set_line_width(4)
+        ctx.stroke()
         if kw.get('mirror_glow') and kw['mirror_glow'](t):
-            rrect(ctx, 500, 318, 920, 284, 50)
+            rrect(ctx, mx + 18, my + 16, mw - 36, mh - 32, 46)
             setc(ctx, hexc('#ffd23f'))
             ctx.set_line_width(10)
             ctx.stroke()
         if EP.glare(t):
             ctx.save()
             ctx.set_operator(cairo.OPERATOR_ADD)
-            glow(ctx, 960, 460, 420, (1.0, 0.97, 0.85), 0.25)
+            glow(ctx, 960, my + mh / 2, 320, (1.0, 0.97, 0.85), 0.25)
             ctx.restore()
     grade(ctx, t, CANVAS, CANVAS, 0.8)
     b = H.blink(t)
     if kw.get('blink') and b in ('L', 'R'):
         s = 1 if b == 'R' else -1
-        cx = 960 + s * 180
-        glow(ctx, cx, 1600, 70, hexc('#2bff6a'), 0.6)
-        poly(ctx, [(cx + s * 30, 1600), (cx - s * 10, 1572), (cx - s * 10, 1588), (cx - s * 40, 1588), (cx - s * 40, 1612),
-                   (cx - s * 10, 1612), (cx - s * 10, 1628)])
+        cx, cy = WHEEL_C[0] + s * 60, 1236
+        glow(ctx, cx, cy, 60, hexc('#2bff6a'), 0.6)
+        poly(ctx, [(cx + s * 30, cy), (cx - s * 10, cy - 28), (cx - s * 10, cy - 12), (cx - s * 40, cy - 12), (cx - s * 40, cy + 12),
+                   (cx - s * 10, cy + 12), (cx - s * 10, cy + 28)])
         setc(ctx, hexc('#2bff6a'))
         ctx.fill()
 
