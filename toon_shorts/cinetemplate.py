@@ -287,6 +287,50 @@ def follow_sim(lead_v, gap0, react, decel, t_brake, t0=-3.0, t1=60.0, dt=1 / 240
             lambda t: float(np.interp(t, ts, vl_)), lambda t: float(np.interp(t, ts, vf_)))
 
 
+def chain_sim(lead_v, gaps, reacts, decel, t_brake, t0=-3.0, t1=60.0, dt=1 / 240, L=4.5, bounce=0.5):
+    """Lead + N followers in one lane (bumper gaps `gaps`, reaction times `reacts`, all brake at `decel` after seeing the
+    car ahead brake). Inelastic rear-end impacts with a small bounce, cars never overlap. Returns
+    ([z_fn], [v_fn], [impact times per follower or None])."""
+    n = len(gaps) + 1
+    ts = np.arange(t0, t1, dt)
+    z = [0.0]
+    for g in gaps:
+        z.append(z[-1] - L - g)
+    z = np.array(z)
+    v = np.full(n, lead_v(t0))
+    braking_at = [t_brake] + [None] * (n - 1)
+    hits = [None] * n
+    Z, VV = [z.copy()], [v.copy()]
+    for t in ts[1:]:
+        for i in range(n):
+            if i == 0:
+                v[0] = max(0.0, lead_v(t)) if hits[1] is None else max(0.0, v[0] - decel * dt)
+                continue
+            if braking_at[i] is None and braking_at[i - 1] is not None and t >= braking_at[i - 1] + reacts[i - 1]:
+                braking_at[i] = t
+            if braking_at[i] is not None:
+                v[i] = max(0.0, v[i] - decel * dt)
+            else:
+                v[i] = v[i - 1] if t < t_brake else v[i]
+        z = z + v * dt
+        for i in range(1, n):
+            if z[i - 1] - z[i] < L:
+                z[i] = z[i - 1] - L
+                if v[i] > v[i - 1] + 0.05:
+                    if hits[i] is None:
+                        hits[i] = t
+                    vc = (v[i] + v[i - 1]) / 2
+                    v[i - 1], v[i] = vc + bounce, max(0.0, vc - bounce)
+                    if braking_at[i - 1] is None:
+                        braking_at[i - 1] = t
+        Z.append(z.copy())
+        VV.append(v.copy())
+    Z, VV = np.array(Z), np.array(VV)
+    zf = [(lambda t, i=i: float(np.interp(t, ts, Z[:, i]))) for i in range(n)]
+    vf = [(lambda t, i=i: float(np.interp(t, ts, VV[:, i]))) for i in range(n)]
+    return zf, vf, hits[1:]
+
+
 class SimCar(Veh):
     """Veh driven by a z(t) function (from follow_sim) instead of a speed key."""
 
