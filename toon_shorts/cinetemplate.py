@@ -541,6 +541,24 @@ def city_401(gantry_z=(500.0, 1400.0)):
                              (gantry_z[1], [(1.0, 8.0, '401 EAST', 'Pickering'), (9.5, 16.5, 'EXIT 375', 'Bayview Ave')])])
 
 
+def city_dallas(gz=(420.0, 1300.0)):
+    """I-35E into Dallas, Texas (downtown skyline ahead)."""
+    def far(ctx, view):
+        city_skyline(ctx, view, Z=1600.0, xc=40.0, n=26, seed=11, base='#6f7690', hmin=70, hmax=230)
+    return Highway(sky=('#3d6fb4', '#ffcf9a'), far=far, seed=2,
+                   gantries=[(gz[0], [(1.0, 8.0, 'I-35E SOUTH', 'Downtown Dallas'), (9.5, 16.5, 'EXIT 429', 'Main St')]),
+                             (gz[1], [(1.0, 8.0, 'I-35E SOUTH', 'Waco'), (9.5, 16.5, 'EXIT 428', 'Commerce St')])])
+
+
+def city_golden(gz=(400.0, 1300.0)):
+    """I-70 at Golden, Colorado (Rockies ahead, pine trees)."""
+    def far(ctx, view):
+        mountains(ctx, view, Z=view.pos[2] + 3400 if not view.ortho else 3400, col='#6c7895', hmax=620, seed=8)
+    return Highway(sky=('#3d6fb4', '#ffcf9a'), grass='#a9a565', hills='#8a8a5a', far=far, roadside='pines', seed=7,
+                   gantries=[(gz[0], [(1.0, 8.0, 'I-70 WEST', 'Mountain Resorts'), (9.5, 16.5, 'EXIT 263', 'Golden')]),
+                             (gz[1], [(1.0, 8.0, 'I-70 WEST', 'Idaho Springs'), (9.5, 16.5, 'EXIT 260', 'C-470')])])
+
+
 def cactus(ctx, view, x, z, s=1.0):
     """Saguaro (desert roadside)."""
     b, tp, sc = view.pt((x, 0, z)), view.pt((x, 4.2 * s, z)), view.scale((x, 0, z))
