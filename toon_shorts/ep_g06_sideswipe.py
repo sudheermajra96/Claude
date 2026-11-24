@@ -20,24 +20,33 @@ HX0 = [(0, LANES[1]), (7.3, LANES[1]), (7.8, LANES[1] - 0.65), (8.8, LANES[1] - 
 MX0 = [(0, LANES[2]), (T_M, LANES[2]), (7.9, 7.0), (8.6, LANES[2])]
 m_occ = occ_of('lady', lambda t: 'shock' if 7.8 < t < 9.5 or t > T_HIT - 0.2 else 'calm', look_fn=lambda t: -0.8 if 7.9 < t < 9.0 else 0.0)
 # wrong world: hero speeds up to ride beside her, she merges again at 12.0
-HW = SpinVeh(Key(HX0 + [(T_HIT, LANES[1]), (13.4, 3.0), (99, 3.0)]),
-             spd((0, V), (7.4, V), (8.4, V - 5.0), (9.6, V - 5.0), (10.6, V + 5.0), (11.3, V + 5.0), (11.6, V), (T_HIT, V), (T_HIT + V / 7.0, 0.0), (99, 0.0)),
-             T_HIT, 0.0, HERO_COL, occ=occ_of('hero', lambda t: 'calm' if t < 7.3 else ('shock' if t < 8.9 or t > T_HIT - 0.2 else 'annoyed'),
-                                              look_fn=lambda t: 0.7 if 10.8 < t < T_HIT else 0.0),
-             spin=lambda t: -0.9 * smooth((t - T_HIT) / 1.2) if t > T_HIT else 0.0)
-MW = SpinVeh(Key(MX0 + [(11.9, LANES[2]), (T_HIT, 7.15), (13.4, 9.6), (99, 9.6)]), spd((0, V), (T_HIT, V), (T_HIT + V / 7.0, 0.0), (99, 0.0)),
-             T_HIT, 0.0, '#2f6f73', occ=m_occ, mark=lambda t: True, spin=lambda t: 0.7 * smooth((t - T_HIT) / 1.2) if t > T_HIT else 0.0,
+HSPIN = lambda t: -0.9 * smooth((t - T_HIT) / 1.2) if t > T_HIT else 0.0
+h_occ_w = occ_of('hero', lambda t: 'calm' if t < 7.3 else ('shock' if t < 8.9 or t > T_HIT - 0.2 else 'annoyed'),
+                 look_fn=lambda t: 0.7 if 10.8 < t < T_HIT else 0.0)
+
+
+def hs_w(dv):
+    return spd((0, V), (7.4, V), (8.4, V - 5.0), (9.6, V - 5.0), (10.4, V + dv), (11.4, V + dv), (11.8, V), (T_HIT, V),
+               (T_HIT + V / 7.0, 0.0), (99, 0.0))
+
+
+HXW = Key(HX0 + [(T_HIT, LANES[1]), (13.4, 3.0), (99, 3.0)])
+MS_W = spd((0, V), (T_HIT, V), (T_HIT + V / 7.0, 0.0), (99, 0.0))
+_probe = Veh(HXW, hs_w(0.0), 0.0, 0.0, '#000')
+M_Z = _probe.z(T_M) + 3.0
+_m = Veh(Key(MX0 + [(99, LANES[2])]), MS_W, T_M, M_Z, '#000')
+DV = min(np.arange(0.0, 14.0, 0.05), key=lambda dv: abs(Veh(HXW, hs_w(dv), 0.0, 0.0, '#000').z(T_HIT) - _m.z(T_HIT)))
+HW = SpinVeh(HXW, hs_w(DV), 0.0, 0.0, HERO_COL, occ=h_occ_w, spin=HSPIN)
+MW = SpinVeh(Key(MX0 + [(11.9, LANES[2]), (T_HIT, 7.15), (13.4, 9.6), (99, 9.6)]), MS_W, T_M, M_Z, '#2f6f73', occ=m_occ, mark=lambda t: True,
+             spin=lambda t: 0.7 * smooth((t - T_HIT) / 1.2) if t > T_HIT else 0.0,
              blink=lambda t: 'B' if t > T_HIT + 2.5 and (t * 1.5) % 1 < 0.5 else None)
 FX = CrashFX(T_HIT, lambda t: (6.2, 0.8, HW.z(T_HIT)))
 # right world: brake, let her in (she signals and merges ahead at 13.6-15.0)
 HR = hero_car(Key(HX0 + [(99, LANES[1])]), spd((0, V), (7.4, V), (8.4, V - 5.0), (12.0, V - 5.0), (13.4, V - 2.0), (99, V - 2.0)),
               lambda t: 'calm' if t < 7.3 else ('shock' if t < 8.9 else ('focus' if t < 15 else 'smile')))
-MR = Veh(Key(MX0 + [(13.6, LANES[2]), (15.0, LANES[1]), (99, LANES[1])]), const(V), T_M, HW.z(T_M) + 3.0, '#2f6f73', occ=m_occ,
+MR = Veh(Key(MX0 + [(13.6, LANES[2]), (15.0, LANES[1]), (99, LANES[1])]), const(V), T_M, M_Z, '#2f6f73', occ=m_occ,
          mark=lambda t: True, blink=blinks((12.8, 15.2, 'L')))
-HR_OFF = HW.z(0.0) - HR.z(0.0)
-HR = hero_car(Key(HX0 + [(99, LANES[1])]), spd((0, V), (7.4, V), (8.4, V - 5.0), (12.0, V - 5.0), (13.4, V - 2.0), (99, V - 2.0)),
-              lambda t: 'calm' if t < 7.3 else ('shock' if t < 8.9 else ('focus' if t < 15 else 'smile')), za=HW.z(0.0))
-MW_ANCHOR_CHECK = MW.z(T_M) - HW.z(T_M)
+MW_ANCHOR_CHECK = DV
 NOT = [c for c in COLS if c != '#2f6f73']
 TRAF = filler([(0, 90), (3, 10), (3, -40), (3, 70), (2, 120), (1, 160), (0, 200)], speed=V, cols=NOT)
 ONC = oncoming()
@@ -67,7 +76,7 @@ shots = layout([
     (1.2, dict(kind='dash_face', world='w', expr='annoyed', turn=0.45, cap='What you WANT to do...')),
     (1.2, dict(kind='pedal_close', world='w', act='gas', hit=0.35, word='CATCH HER!')),
     (1.4, dict(kind='horn_close', world='w', hits=(0.25, 0.7, 1.05), cap='Ride beside her. Honk!')),
-    (3.0, dict(kind='cine', world='w', cam='track', target=HW, off=(-2.6, 0.6, -2.5), look=(2.0, 0.8, 4.0), f=640, shake=0.05, jolt=(T_HIT, 0.6),
+    (3.0, dict(kind='cine', world='w', cam='track', target=HW, off=(1.7, 1.6, -9.0), look=(0.9, 0.8, 5.0), f=700, shake=0.05, jolt=(T_HIT, 0.6), flare=0.3,
                x="You're in her blind spot. Again.", vdelay=round(VH - 13.2 - 0.3, 2))),
     (2.4, dict(kind='cine', world='w', cam='heli', target=HW, R=14.0, H=12.0, a0=-0.2, w=0.1, f=950, x='Both cars spin out.')),
     (1.6, dict(kind='cine', world='w', cam='heli', target=HW, R=18.0, H=8.0, a0=-0.6, w=0.2, f=1000, rewind=(16.0, 7.0))),
@@ -99,7 +108,7 @@ def sfx(m, S, E):
 
 
 story = Story('g06_sideswipe', ['Driver merges INTO you?', 'Getting even? Watch this'], city_golden((1000.0, 1800.0)), HW, HR,
-              [MW, FX] + TRAF + ONC, [MR] + TRAF + ONC, shots, DUR, tm=tm, sfx=sfx)
+              [MW, FX] + [c for c in TRAF if c.z(0) > 0] + ONC, [MR] + TRAF + ONC, shots, DUR, tm=tm, sfx=sfx)
 video = story.video
 if __name__ == '__main__':
     story.run(lambda: print('hit video', round(VH, 2), '| contact', lateral_gap(HW, MW, 11, 13), '| her offset at near miss',
