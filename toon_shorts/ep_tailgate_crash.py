@@ -110,58 +110,45 @@ video.overlays = [
 ]
 
 
-# ------------------------------------------------------------------ sound (cinematic kit sfx2)
-import sfx2 as X
+# ------------------------------------------------------------------ sound
+def crunch(d=1.2):
+    n = int(d * SR)
+    tt = np.arange(n) / SR
+    s = bp(noise(n), 120, 4000) * np.exp(-tt / 0.18)
+    s += np.sin(2 * np.pi * 55 * tt) * np.exp(-tt / 0.25) * 1.2
+    rr = np.zeros(n)
+    rnd = np.random.default_rng(4)
+    for k in rnd.uniform(0.05, 0.9, 18):        # glass / plastic bits
+        i = int(k * SR)
+        m_ = min(n - i, int(0.05 * SR))
+        rr[i:i + m_] += bp(noise(m_), 2500, 8000) * np.exp(-np.arange(m_) / (0.01 * SR)) * 0.6
+    return np.tanh((s + rr) * 1.4) * 0.8
 
 
 def sound():
-    m = X.Mix2(DUR)
-    # beds: road outside until the aftermath, then distant traffic
-    m.add(X.road_bed(15.6, lambda t: 29.0), 0, 0.32, bed=True)
-    m.add(X.cabin_bed(2.6), S[2], 0.4)
-    m.duck(S[2], E[2], 0.25, 0.3)                          # inside the car: outside roar muffled
-    m.add(X.distant_traffic(DUR - 15.0), 15.0, 0.4, bed=True)
-    # hook (world = lt + 9.5): her brakes, his screech, suck-out, CRASH at 1.6
-    m.add(X.braam2(2.6), 0.0, 0.55, verb=0.3, space='hall')
-    m.add(X.brake_squeal(1.0), 0.0, 0.35, pan=-0.3)
-    m.add(X.tyre_screech(0.75, f=950), 0.85, 0.75, pan=0.2, verb=0.25)
-    m.duck(1.4, 1.62, 0.1, 0.4)
-    m.add(X.car_crash(2.4), 1.6, 1.0, verb=0.35)
-    m.add(X.boom(3.0), 1.6, 0.6, verb=0.5, space='tail')
-    m.add(X.whoosh2(0.7), 2.55, 0.45)
-    # tailgating: cars passing, the tension starts
-    m.add(X.passby(2.2, 31, 5.0, 1, 110, seed=21), 3.4, 0.55)
-    m.add(X.passby(2.2, 33, 7.0, -1, 85, seed=22), 4.6, 0.45)
-    m.add(X.engine(3.0, lambda u: 2300, 0.4), 3.0, 0.18)
-    m.add(X.mono_to_st(X.heartbeat2(4, 96)), S[2] + 0.2, 0.7)
-    # she brakes (world 9.4), he reacts 1 s later
-    m.add(X.brake_squeal(1.2), T_B, 0.45, pan=-0.2, verb=0.2)
-    m.add(X.abs_judder(1.2), T_B + 0.1, 0.4, pan=-0.2)
-    m.add(X.tyre_screech(0.25, f=980, seed=31), T_B + REACT, 0.7, verb=0.2)
-    # slow motion: whoomp, everything stretched and low, beds sucked out
-    k = 0.35
-    m.duck(S[4], E[4], 0.12, 0.8)
-    m.add(X.slowmo_in(1.0), S[4], 0.9)
-    m.add(X.braam2(3.0, 38.9), S[4] + 0.05, 0.45, verb=0.4, space='hall')
-    m.add(X.stretch(X.tyre_screech(VI - S[4], f=980, seed=32), 0.55)[:int((VI - S[4]) * X.SR)], S[4], 0.6, verb=0.3)
-    m.add(X.stretch(X.mono_to_st(X.heartbeat2(2, 100)), 0.5), S[4] + 0.1, 0.8)
-    m.add(X.stretch(X.car_crash(2.0), 0.45), VI, 1.0, verb=0.45)
-    m.add(X.boom(3.5), VI, 0.75, verb=0.6, space='tail')
-    # aftermath inside his head: ringing ears, slow heartbeat, steam
-    m.add(X.tinnitus(2.8), S[5], 0.5)
-    m.add(X.mono_to_st(X.heartbeat2(3, 70)), S[5] + 0.3, 0.6)
-    m.add(X.steam_hiss(6.0), S[5] + 0.2, 0.55, pan=0.2)
-    # outside: hazards ticking, hot engine pings, low drone
-    for t, sig in X.relay_ticks(S[6], E[6] + 1.0, 1.5):
-        m.add(sig, t, 0.5, pan=0.1)
-    m.add(X.engine_tick(3.0), S[6] + 0.3, 0.5, pan=-0.3)
-    tt = np.arange(int(5.5 * X.SR)) / X.SR
-    drone = (np.sin(2 * np.pi * 55 * tt) + 0.5 * np.sin(2 * np.pi * 82.4 * tt)) * np.minimum(1, tt / 1.5) * np.minimum(1, (5.5 - tt) / 1.5)
-    m.add(drone, S[6], 0.22, verb=0.3, space='hall')
-    m.add(X.whoosh2(0.8), S[7] - 0.4, 0.5)
-    m.add(X.chime2(880), S[7] + 1.2, 0.5, verb=0.4, space='hall')
-    m.add(X.chime2(1318.5), S[7] + 1.45, 0.35, verb=0.4, space='hall')
-    return m.out()
+    m = Mixer(DUR)
+    highway_bed(m, DUR)
+    # hook: screech + crash (impact at video 1.6)
+    m.add(braam(2.2, 46), 0.05, 0.7)
+    m.add(screech(1.0, 1100), 0.6, 0.7)
+    m.add(crunch(), 1.6, 1.0)
+    # tension while tailgating
+    m.add(heartbeat(4, 110), S[2] + 0.2, 0.5)
+    m.add(car_pass(1.4, 0.5, 100), 4.0, 0.4, pans(1.4, -0.6, 0.6))
+    # lead brakes (world T_B in shot 3), our driver brakes 1 s later
+    m.add(brake_squeal(1.6), T_B, 0.6)
+    m.add(screech(2.0, 1150), T_B + REACT, 0.8)
+    # slow motion crash
+    m.add(braam(2.6, 41), S[4], 0.6)
+    m.add(slow(screech(1.2, 1150), 0.35), S[4], 0.6)
+    m.add(slow(crunch(), 0.35), VI, 1.0)
+    m.add(impact(), VI, 0.6)
+    m.add(sad_violin(), S[5] + 0.2, 0.5)
+    # aftermath: hazards ticking
+    indicator(m, S[6], E[6], 0.25, 0.0)
+    m.add(whoosh(0.5, 0.4), S[6] - 0.1, 0.4)
+    m.add(chime(), S[7] + 0.3, 0.5)
+    return m.out(DUR)
 
 
 def verify():
