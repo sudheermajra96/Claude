@@ -603,6 +603,98 @@ def city_golden(gz=(400.0, 1300.0)):
                              (gz[1], [(1.0, 8.0, 'I-70 WEST', 'Idaho Springs'), (9.5, 16.5, 'EXIT 260', 'C-470')])])
 
 
+def cone(ctx, view, x, z):
+    b, tp, s = view.pt((x, 0, z)), view.pt((x, 0.75, z)), view.scale((x, 0, z))
+    if not b or not tp or not s or s < 0.6:
+        return
+    w = 0.38 * s
+    lw = max(1, min(3, s / 30))
+    rrect(ctx, b[0] - w * 0.75, b[1] - 0.05 * s, w * 1.5, 0.1 * s, 0.02 * s)
+    fill_stroke(ctx, hexc('#222'), OUTL, lw)
+    poly(ctx, [(b[0] - w / 2, b[1]), (b[0] + w / 2, b[1]), (tp[0] + w * 0.1, tp[1]), (tp[0] - w * 0.1, tp[1])])
+    fill_stroke(ctx, hexc('#ff7a1a'), OUTL, lw)
+    y1 = b[1] + (tp[1] - b[1]) * 0.45
+    y2 = b[1] + (tp[1] - b[1]) * 0.65
+    poly(ctx, [(b[0] - w * 0.36, y1), (b[0] + w * 0.36, y1), (b[0] + w * 0.27, y2), (b[0] - w * 0.27, y2)])
+    setc(ctx, (1, 1, 1))
+    ctx.fill()
+
+
+class WorkZone:
+    """Right lane (x 10.5..14) closed from z_t on: cone taper over `taper` m, cone line after, flashing arrow board,
+    orange warning signs before. Add it to the world's agents."""
+
+    def __init__(self, z_t, taper=60.0, length=400.0, signs=(250.0, 120.0)):
+        self.zt, self.taper, self.len, self.signs = z_t, taper, length, signs
+        self.col, self.ext = '#ff7a1a', (0, 0, 0, 0)
+        pts = [(14.0 - 3.4 * k / 10, z_t - taper + taper * k / 10) for k in range(11)]
+        pts += [(10.6, z_t + 8.0 * k) for k in range(1, int(length / 8))]
+        self.cones = pts
+
+    def visible(self, t):
+        return True
+
+    def pose(self, t):
+        return 12.0, self.zt, 0.0
+
+    def items(self, ctx, view, t):
+        out = []
+        if view.ortho:
+            def top():
+                for x, z in self.cones:
+                    p = view.pt((x, 0, z))
+                    ellipse(ctx, p[0], p[1], 0.35 * view.s, 0.35 * view.s)
+                    setc(ctx, hexc('#ff7a1a'))
+                    ctx.fill()
+            return [((12.0, 0.0, self.zt), top)]
+        ez = view.pos[2]
+        for x, z in self.cones:
+            if ez - 30 < z < ez + 500:
+                out.append(((x, 0.4, z), lambda x=x, z=z: cone(ctx, view, x, z)))
+        out.append(((12.25, 1.5, self.zt + 6.0), lambda: self.board(ctx, view, t)))
+        for d in self.signs:
+            out.append(((16.0, 2.0, self.zt - d), lambda d=d: self.sign(ctx, view, self.zt - d)))
+        return out
+
+    def board(self, ctx, view, t):
+        z = self.zt + 6.0
+        if not fill_poly(ctx, view, [(10.9, 0.6, z), (13.6, 0.6, z), (13.6, 2.6, z), (10.9, 2.6, z)], hexc('#1b1b22'), OUTL, 2):
+            return
+        fill_poly(ctx, view, [(11.0, 0.0, z + 0.5), (13.5, 0.0, z + 0.5), (13.5, 0.6, z + 0.5), (11.0, 0.6, z + 0.5)], hexc('#ff7a1a'), OUTL, 1)
+        on = (t * 1.6) % 1 < 0.6
+        k = int(t * 4) % 4
+        for i in range(5):
+            if on and i <= k + 1:
+                c = view.pt((13.2 - i * 0.5, 1.6, z - 0.05))
+                s = view.scale((13.2 - i * 0.5, 1.6, z))
+                if c and s:
+                    glow(ctx, c[0], c[1], max(4, 0.35 * s), hexc('#ffd23f'), 0.9)
+        tip = [view.pt(P) for P in ((11.2, 1.6, z - 0.06), (11.8, 2.1, z - 0.06), (11.8, 1.1, z - 0.06))]
+        if on and all(tip):
+            poly(ctx, tip)
+            setc(ctx, hexc('#ffd23f'))
+            ctx.fill()
+
+    def sign(self, ctx, view, z):
+        x = 16.2
+        a, b = view.pt((x, 0, z)), view.pt((x, 2.0, z))
+        if not a or not b:
+            return
+        ctx.move_to(*a)
+        ctx.line_to(*b)
+        setc(ctx, hexc('#7a7f8c'))
+        ctx.set_line_width(max(1.5, 0.1 * (view.scale((x, 1, z)) or 5)))
+        ctx.stroke()
+        pts = [view.pt(P) for P in ((x, 2.0, z), (x + 1.0, 3.0, z), (x, 4.0, z), (x - 1.0, 3.0, z))]
+        if all(pts):
+            poly(ctx, pts)
+            fill_stroke(ctx, hexc('#ff8c1a'), OUTL, 2)
+            c, s = view.pt((x, 3.0, z)), view.scale((x, 3.0, z))
+            if c and s and s > 6:
+                text_center(ctx, 'RIGHT LANE', c[0], c[1] - 0.05 * s, 0.26 * s, OUTL)
+                text_center(ctx, 'CLOSED', c[0], c[1] + 0.3 * s, 0.26 * s, OUTL)
+
+
 def cactus(ctx, view, x, z, s=1.0):
     """Saguaro (desert roadside)."""
     b, tp, sc = view.pt((x, 0, z)), view.pt((x, 4.2 * s, z)), view.scale((x, 0, z))
