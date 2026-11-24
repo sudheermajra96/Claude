@@ -225,8 +225,8 @@ def w_cam(ctx, w, t, lt, kw):
     if kw.get('hud', m in ('chase', 'inside')):
         hud(ctx, w, tf)
     if kw.get('gap'):
-        ww = WW_W if tf < T_R0 else WW_R
-        d = ww.z(tf) - e.pose(tf)[1] - 4.4
+        ww = w.others(tf)[0]                       # the wrong-way car (time-shifted in the hook)
+        d = ww.pose(tf)[1] - e.pose(tf)[1] - 4.4
         if d > 0:
             rrect(ctx, 1400, 40, 480, 160, 34)
             setc(ctx, (0, 0, 0), 0.6)
