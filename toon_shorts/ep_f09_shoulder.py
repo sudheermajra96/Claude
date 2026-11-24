@@ -18,9 +18,10 @@ SH = Veh(SHOULDER, SS, T_PASS, HERO.z(T_PASS), '#e8e8ee', mark=lambda t: True, o
 Z_STOP = SH.z(30)
 PCAR = Veh(SHOULDER, const(0.0), 0.0, Z_STOP + 4.5 + 4.0, '#f4f4f6', police=lambda t: t > 10.4, brake=lambda t: 0.0)
 COP = Trooper(17.0, Z_STOP + 0.6, lambda t: ('write', t % 3), None, lambda t: 'flat')
+COP.visible = lambda t: t > 13.8
 T_HP = (Z_STOP - HERO.z(0)) / VJ
 QUEUE = [Veh(LANES[l], const(VJ), 0.0, z + 5.0 * l, COLS[(int(z) // 12 + l) % 10]) for l in range(4) for z in np.arange(-48.0, 240.0, 12.0)
-         if not (l == 3 and abs(z) < 1)]
+         if not (l == 3 and abs(z + 15.0) < 8.0)]
 AG = [SH, PCAR, COP] + QUEUE + oncoming()
 
 
@@ -34,7 +35,7 @@ defs = [
     (6.0, 'cine', dict(cam='heli', target=HERO, R=26.0, H=12.0, a0=-0.6, w=0.12, f=1000, oz=12.0)),
     (9.0, 'interior_mirror', dict(f=850)),
     (11.5, 'dash_face', dict(expr='annoyed', turn=lambda lt: 0.3)),
-    (14.0, 'cine', dict(cam='heli', target=SH, R=22.0, H=10.0, a0=0.8, w=-0.12, f=1000, oz=2.0)),
+    (14.0, 'cine', dict(cam='heli', target=SH, R=24.0, H=11.0, a0=-0.5, w=0.1, f=1000, oz=4.0)),
     (16.5, 'cine', dict(cam='top', center=lambda t: (9.0, HERO.z(t) + 30.0), H=60.0, f=1000)),
     (19.0, 'cine', dict(cam='fixed', pos=(17.4, 2.0, Z_STOP + 22.0), target_pt=(14.0, 1.0, Z_STOP - 6.0), f=820)),
     (22.0, 'cine', dict(cam='crane', target=HERO, ox=-4.0, oz0=-26.0, oz1=-36.0, y0=2.0, y1=22.0, tz=120.0, f=1000)),

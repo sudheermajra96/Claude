@@ -695,6 +695,17 @@ class WorkZone:
                 text_center(ctx, 'CLOSED', c[0], c[1] + 0.3 * s, 0.26 * s, OUTL)
 
 
+def city_phoenix(gz=(500.0, 1400.0)):
+    """I-10 through Phoenix, Arizona: desert (saguaro + rocks), red-brown mountains, small downtown skyline."""
+    def far(ctx, view):
+        Zb = (view.pos[2] if not view.ortho else 0.0)
+        mountains(ctx, view, Z=Zb + 3000, col='#9a6a55', snow='#b07a60', haze='#ffc08a', seed=12, peaks=7, hmax=330)
+        city_skyline(ctx, view, Z=Zb + 2200, xc=-150.0, n=10, seed=31, base='#7d6a72', haze='#ffc08a', hmin=50, hmax=140)
+    return Highway(sky=('#3f74c0', '#ffd09a'), grass='#d9b98a', hills='#c69c74', far=far, roadside='cactus', asphalt='#55555e', seed=12,
+                   gantries=[(gz[0], [(1.0, 8.0, 'I-10 EAST', 'Phoenix'), (9.5, 16.5, 'EXIT 143', '7th St')]),
+                             (gz[1], [(1.0, 8.0, 'I-10 EAST', 'Tucson'), (9.5, 16.5, 'EXIT 144', '16th St')])])
+
+
 def cactus(ctx, view, x, z, s=1.0):
     """Saguaro (desert roadside)."""
     b, tp, sc = view.pt((x, 0, z)), view.pt((x, 4.2 * s, z)), view.scale((x, 0, z))
