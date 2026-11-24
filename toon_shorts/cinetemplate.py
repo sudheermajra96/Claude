@@ -1189,6 +1189,210 @@ def build(defs):
     return shots
 
 
+def rewind_fx(ctx, lt, d):
+    """VHS rewind look: blue tint, scanlines, jitter bars, big REWIND label with double triangles."""
+    setc(ctx, hexc('#2a3b8f'), 0.28)
+    ctx.paint()
+    for y in range(0, CANVAS, 8):
+        ctx.rectangle(0, y, CANVAS, 3)
+    setc(ctx, (0, 0, 0), 0.18)
+    ctx.fill()
+    r = random.Random(int(lt * 30))
+    for _ in range(3):
+        y = r.uniform(0, CANVAS)
+        ctx.rectangle(0, y, CANVAS, r.uniform(6, 30))
+        setc(ctx, (1, 1, 1), 0.12)
+        ctx.fill()
+    on = (lt * 2.5) % 1 < 0.7
+    if on:
+        for k in range(2):
+            x0 = 120 + k * 70
+            poly(ctx, [(x0, 160), (x0 - 60, 200), (x0, 240)])
+            setc(ctx, (1, 1, 1))
+            ctx.fill()
+        ctx.select_font_face('Inter', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        ctx.set_font_size(84)
+        ctx.move_to(230, 230)
+        setc(ctx, (1, 1, 1))
+        ctx.show_text('REWIND')
+
+
+def verdict(kind, text, size=100):
+    """Big bottom banner: kind 'x' (red, cross) or 'ok' (green, tick). Text wraps to two lines."""
+    col = hexc('#d62f3a') if kind == 'x' else hexc('#1f9d52')
+
+    def fn(ctx, lt, d):
+        a = smooth(lt / 0.25)
+        sc = 0.85 + 0.15 * smooth(lt / 0.3)
+        ctx.save()
+        ctx.translate(960, 1700)
+        ctx.scale(sc, sc)
+        ctx.translate(-960, -1700)
+        rrect(ctx, 30, 1480, 1860, 410, 60)
+        setc(ctx, col, 0.94 * a)
+        ctx.fill_preserve()
+        setc(ctx, (1, 1, 1), a)
+        ctx.set_line_width(8)
+        ctx.stroke()
+        ellipse(ctx, 185, 1685, 120, 120)
+        setc(ctx, (1, 1, 1), a)
+        ctx.fill()
+        ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+        ctx.set_line_width(30)
+        setc(ctx, col, a)
+        if kind == 'x':
+            ctx.move_to(135, 1635)
+            ctx.line_to(235, 1735)
+            ctx.move_to(235, 1635)
+            ctx.line_to(135, 1735)
+        else:
+            ctx.move_to(125, 1690)
+            ctx.line_to(170, 1737)
+            ctx.line_to(250, 1633)
+        ctx.stroke()
+        ctx.set_line_cap(cairo.LINE_CAP_BUTT)
+        ctx.select_font_face('Inter', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        ctx.set_font_size(size)
+        words, lines, cur = text.split(), [], ''
+        for wd in words:
+            tr = (cur + ' ' + wd).strip()
+            if ctx.text_extents(tr).x_advance > 1500 and cur:
+                lines.append(cur)
+                cur = wd
+            else:
+                cur = tr
+        lines.append(cur)
+        y0 = 1685 - (len(lines) - 1) * size * 0.58 + size * 0.35
+        for i, ln in enumerate(lines):
+            ctx.move_to(345, y0 + i * size * 1.16)
+            setc(ctx, (1, 1, 1), a)
+            ctx.show_text(ln)
+        ctx.restore()
+    return fn
+
+
+# ------------------------------------------------------------------ 2D close-up scenes
+def pedal_close(ctx, w, t, lt, kw):
+    """Footwell close-up: gas + brake pedals, the shoe hits kw['act'] ('brake'|'gas') at kw['hit'] (local s)."""
+    g = cairo.LinearGradient(0, 0, 0, CANVAS)
+    g.add_color_stop_rgb(0, *hexc('#2b2838'))
+    g.add_color_stop_rgb(1, *hexc('#14121c'))
+    ctx.set_source(g)
+    ctx.paint()
+    rrect(ctx, -20, 1500, CANVAS + 40, 500, 40)
+    setc(ctx, hexc('#1b1925'))
+    ctx.fill()
+    for i in range(14):
+        ctx.move_to(i * 150, 1520)
+        ctx.line_to(i * 150 - 80, 1920)
+    setc(ctx, hexc('#25222f'))
+    ctx.set_line_width(10)
+    ctx.stroke()
+    hit = kw.get('hit', 0.6)
+    act = kw.get('act', 'brake')
+    press = smooth((lt - hit + 0.15) / 0.15) if lt > hit - 0.15 else 0.0
+    for name, x, wdt, hgt in (('brake', 720, 300, 260), ('gas', 1260, 170, 420)):
+        pr = press if name == act else 0.0
+        y = 1050 + pr * 70
+        ctx.move_to(x, 300)
+        ctx.line_to(x, y)
+        setc(ctx, hexc('#3b3848'))
+        ctx.set_line_width(40)
+        ctx.stroke()
+        rrect(ctx, x - wdt / 2, y, wdt, hgt * (1 - 0.1 * pr), 40)
+        fill_stroke(ctx, hexc('#4a4658'), OUTL, 6)
+        for k in range(4):
+            ctx.move_to(x - wdt / 2 + 30, y + 40 + k * hgt / 5)
+            ctx.line_to(x + wdt / 2 - 30, y + 40 + k * hgt / 5)
+        setc(ctx, hexc('#2c2a36'))
+        ctx.set_line_width(10)
+        ctx.stroke()
+    # leg + shoe coming from the top-left
+    fx = (720 if act == 'brake' else 1260) - 40
+    u = smooth(lt / max(0.2, hit - 0.15)) if lt < hit else 1.0
+    sx, sy = 260 + (fx - 260) * u, 640 + (1010 + press * 60 - 640) * u
+    poly(ctx, [(-40, -40), (380, -40), (sx + 130, sy - 120), (sx - 120, sy - 90)])
+    fill_stroke(ctx, hexc('#3b4a6b'), OUTL, 8)
+    ctx.save()
+    ctx.translate(sx, sy)
+    ctx.rotate(0.35)
+    rrect(ctx, -150, -120, 360, 210, 90)
+    fill_stroke(ctx, hexc('#7a4a2a'), OUTL, 8)
+    rrect(ctx, -150, 60, 360, 40, 18)
+    fill_stroke(ctx, hexc('#2a1a10'), OUTL, 6)
+    ctx.restore()
+    if lt > hit:
+        k = 1 - smooth((lt - hit) / 0.5)
+        for i in range(10):
+            a_ = i * math.pi / 5
+            ctx.move_to(fx + math.cos(a_) * 300, 1150 + math.sin(a_) * 300)
+            ctx.line_to(fx + math.cos(a_) * (300 + 160 * k), 1150 + math.sin(a_) * (300 + 160 * k))
+        setc(ctx, (1, 1, 1), 0.8 * k)
+        ctx.set_line_width(14)
+        ctx.stroke()
+        word = kw.get('word', 'SLAM!' if act == 'brake' else 'FLOOR IT!')
+        ctx.save()
+        ctx.translate(1180 if act == 'brake' else 640, 520)
+        ctx.rotate(-0.12)
+        s_ = 1 + 0.4 * k
+        ctx.scale(s_, s_)
+        outlined_text(ctx, word, 0, 0, 150, hexc('#ffd23f'), lw=26)
+        ctx.restore()
+    grade(ctx, t, CANVAS, CANVAS, 0.6, grain=0.04)
+
+
+def horn_close(ctx, w, t, lt, kw):
+    """Steering-wheel close-up: a fist slams the horn pad, HONK burst."""
+    g = cairo.RadialGradient(960, 960, 100, 960, 960, 1300)
+    g.add_color_stop_rgb(0, *hexc('#3a3650'))
+    g.add_color_stop_rgb(1, *hexc('#14121c'))
+    ctx.set_source(g)
+    ctx.paint()
+    ellipse(ctx, 960, 1000, 900, 820)
+    ellipse(ctx, 960, 1000, 760, 690)
+    ctx.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+    fill_stroke(ctx, hexc('#17151f'), OUTL, 8)
+    ctx.set_fill_rule(cairo.FILL_RULE_WINDING)
+    for ang in (180, 0):
+        sx = -1 if ang == 180 else 1
+        poly(ctx, [(960 + sx * 200, 900), (960 + sx * 780, 930), (960 + sx * 780, 1060), (960 + sx * 200, 1100)])
+        fill_stroke(ctx, hexc('#1d1a29'), OUTL, 6)
+    hits = kw.get('hits', (0.4, 1.0, 1.4))
+    press = max([smooth(1 - abs(lt - h) / 0.12) for h in hits] + [0])
+    ellipse(ctx, 960, 1000, 330 - 12 * press, 290 - 12 * press)
+    fill_stroke(ctx, hexc('#262236'), hexc('#4d4870'), 8)
+    ellipse(ctx, 960, 990, 70, 55)
+    fill_stroke(ctx, hexc('#b8bccb'), OUTL, 5)
+    fy = 1000 - 260 * (1 - press) - 40
+    poly(ctx, [(1500, 1960), (1880, 1960), (1120, fy + 120), (900, fy + 60)])
+    fill_stroke(ctx, kw.get('sleeve', JACKET), OUTL, 8)
+    rrect(ctx, 760, fy - 150, 400, 300, 120)
+    fill_stroke(ctx, SKIN, OUTL, 8)
+    for i in range(3):
+        ctx.move_to(820 + i * 90, fy - 140)
+        ctx.line_to(820 + i * 90, fy - 50)
+    setc(ctx, SKIN_SH)
+    ctx.set_line_width(8)
+    ctx.stroke()
+    if press > 0.3:
+        for i in range(12):
+            a_ = i * math.pi / 6
+            ctx.move_to(960 + math.cos(a_) * 520, 900 + math.sin(a_) * 420)
+            ctx.line_to(960 + math.cos(a_) * 700, 900 + math.sin(a_) * 560)
+        setc(ctx, hexc('#ffd23f'), press)
+        ctx.set_line_width(16)
+        ctx.stroke()
+        ctx.save()
+        ctx.translate(960, 330)
+        ctx.scale(0.9 + 0.3 * press, 0.9 + 0.3 * press)
+        outlined_text(ctx, kw.get('word', 'HONK!'), 0, 0, 190, hexc('#ffd23f'), lw=30)
+        ctx.restore()
+    grade(ctx, t, CANVAS, CANVAS, 0.6, grain=0.04)
+
+
+engine.SCENES.update(pedal_close=pedal_close, horn_close=horn_close)
+
+
 class CineVideo(SquareVideo):
     def frame(self, ctx, t):
         ctx.set_source_rgb(0, 0, 0)
@@ -1206,7 +1410,15 @@ class CineVideo(SquareVideo):
         ctx.scale(k, k)
         ctx.set_line_cap(cairo.LINE_CAP_BUTT)
         lt = t - s.start
-        engine.SCENES[s.kind](ctx, self.world, EP.tm.wt(t), lt, s.kw)
+        w = s.kw.get('world', self.world)
+        tw = EP.tm.wt(t)
+        if s.kw.get('rewind'):                 # play world time backwards a -> b over the shot
+            a, b = s.kw['rewind']
+            u = lt / s.dur
+            tw = a + (b - a) * (u * u * (3 - 2 * u))
+        engine.SCENES[s.kind](ctx, w, tw, lt, s.kw)
+        if s.kw.get('rewind'):
+            rewind_fx(ctx, lt, s.dur)
         whip(ctx, lt, s.dur, CANVAS, CANVAS, 0.12)
         for t0, t1, fn in self.overlays:
             if t0 <= t < t1:
