@@ -1151,6 +1151,14 @@ def run(video, sound, verify, default_out='episode.mp4'):
         verify()
     elif len(a) > 2 and a[2] == 'check':
         check_sheet(video, a[1])
+    elif len(a) > 3 and a[2] == 'audio':            # remix only: new sound on an already rendered video
+        import os
+        import subprocess
+        wav = a[1] + '.wav'
+        engine.write_wav(wav, sound())
+        subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', a[3], '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy',
+                        '-c:a', 'aac', '-b:a', '256k', '-shortest', a[1]], check=True)
+        os.remove(wav)
     elif len(a) > 2 and a[2] == 'still':
         for tt in a[3:]:
             video.render_still(float(tt), a[1].replace('.png', f'_{tt}.png'))
