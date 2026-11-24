@@ -720,7 +720,8 @@ def braam(d=2.0, f0=55):
     n = int(d * SR)
     tt = np.arange(n) / SR
     s = sum(np.sign(np.sin(2 * np.pi * f * tt)) * 0.3 + np.sin(2 * np.pi * f * tt) for f in (f0, f0 * 1.5, f0 * 2.0))
-    s = lp(s, 500 + 1500 * np.exp(-tt / 0.4))
+    k = np.exp(-tt / 0.4)
+    s = lp(s, 2000) * k + lp(s, 500) * (1 - k)
     return s * env_adsr(n, 0.02, 0.8) * 0.4
 
 
