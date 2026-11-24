@@ -12,7 +12,7 @@ def hero_expr(t):
 HERO = hero_car(HX, const(V), hero_expr, blink=blinks((13.6, T_LC1 + 0.3, 'R')))
 FLASH = lambda t: 4.0 < t < 15.6 and (t * 3.0) % 1 < 0.5
 AS = spd((0, 34.0), (3.2, 34.0), (4.0, V), (15.6, V), (17.0, 36.0), (99, 36.0))
-TG = Veh(LANES[1], AS, 6.0, HERO.z(6.0) - 4.5 - 5.0, '#30333d', occ=occ_of('husb', lambda t: 'annoyed'), flash=FLASH)
+TG = Veh(LANES[1], AS, 6.0, HERO.z(6.0) - 4.5 - 5.0, '#30333d', occ=occ_of('husb', lambda t: 'annoyed'), flash=FLASH, mark=lambda t: True)
 EP.glare = FLASH
 TRAF = filler([(0, 40), (0, -50), (2, 60), (2, -80), (3, 20), (3, -30), (1, 120), (0, 160), (3, 140), (2, 200)])
 AG = [TG] + TRAF + oncoming()

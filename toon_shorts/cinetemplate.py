@@ -81,10 +81,11 @@ EP = types.SimpleNamespace(hero=None, glare=lambda t: False, shadows=[], tm=Time
 # ------------------------------------------------------------------ vehicles
 class Veh(Track):
     def __init__(self, x, speed, ta, za, col, kind='car', occ=None, flash=None, police=None, brake=None, blink=None,
-                 trailer=('#f4f4f6', '#e0393e', 'PEACH STATE'), cab='#2f6f9f', t0=-3, t1=80, damage=None):
+                 trailer=('#f4f4f6', '#e0393e', 'PEACH STATE'), cab='#2f6f9f', t0=-3, t1=80, damage=None, mark=None):
         super().__init__(x, speed, ta, za, col, brake=brake, blink=blink, t0=t0, t1=t1)
         self.kind, self.occ, self.flash, self.police, self.trailer, self.cab = kind, occ, flash, police, trailer, cab
         self.damage = damage or []           # [('front' | 'back', world t of impact)]
+        self.mark = mark                     # fn(t) -> bool: red arrow + ground glow on the problem driver
         self.ext = (-15.5, 5.6, 1.3, 4.0) if kind == 'semi' else (-2.25, 2.25, 0.95, 1.45)
 
     def items(self, ctx, view, t):
@@ -100,10 +101,20 @@ class Veh(Track):
                     ((x - math.sin(h) * 7.2, 2.0, z - math.cos(h) * 7.2),
                      lambda: trailer_det(ctx, view, x, z, h, False, False, br, tc, ts, tl))]
 
+        mk = self.mark and self.mark(t)
+
         def fn():
             if view.ortho:
+                if mk:
+                    p = view.pt((x, 0, z))
+                    ellipse(ctx, p[0], p[1], 3.2 * view.s, 3.2 * view.s)
+                    setc(ctx, hexc('#ff2d2d'))
+                    ctx.set_line_width(5)
+                    ctx.stroke()
                 draw_car_top_g(ctx, view, x, z, h, self.col, t, self.blink(t), self.occ is not None)
                 return
+            if mk:
+                mark_ring(ctx, view, x, z, h, t)
             draw_car_round(ctx, view, x, z, h, self.col, t, self.blink(t), self.brake(t), occ=self.occ(t) if self.occ else None)
             Lf = L(x, z, h)
             if self.flash and self.flash(t):
@@ -116,6 +127,8 @@ class Veh(Track):
                 for face, t_d in self.damage:
                     if t >= t_d:
                         crumple(ctx, view, Lf, x, z, h, face)
+            if mk:
+                mark_arrow(ctx, view, x, z, t)
             if self.police and self.police(t):
                 on = (t * 2.6) % 1 < 0.5
                 for sx, col in ((-0.3, (1.0, 0.15, 0.15)), (0.3, (0.2, 0.35, 1.0))):
@@ -128,6 +141,37 @@ class Veh(Track):
                         if lit_:
                             glow(ctx, p[0], p[1], min(0.8 * s + 26, 120), col, 0.85)
         return [((x, 0.8, z), fn)]
+
+
+def mark_ring(ctx, view, x, z, h, t):
+    """Pulsing red glow on the ground under a car."""
+    pts = [view.pt((x + 1.7 * math.cos(a) * math.cos(h) + 3.1 * math.sin(a) * math.sin(h), 0.02,
+                    z - 1.7 * math.cos(a) * math.sin(h) + 3.1 * math.sin(a) * math.cos(h))) for a in np.linspace(0, 2 * math.pi, 28)]
+    if not all(pts):
+        return
+    k = 0.5 + 0.5 * math.sin(t * 6.0)
+    poly(ctx, pts)
+    setc(ctx, hexc('#ff2d2d'), 0.28 + 0.2 * k)
+    ctx.fill_preserve()
+    setc(ctx, hexc('#ff2d2d'), 0.9)
+    ctx.set_line_width(max(2.0, (view.scale((x, 0, z)) or 10) * 0.08))
+    ctx.stroke()
+
+
+def mark_arrow(ctx, view, x, z, t):
+    """Bouncing red arrow pointing down at a car (never smaller than ~70 px so it reads from far away)."""
+    bob = 0.25 * math.sin(t * 5.0)
+    P = (x, 2.9 + bob, z)
+    p, s = view.pt(P), view.scale(P)
+    if not p or not s or view.to_cam(P)[2] <= 0.5:
+        return
+    L_ = max(min(1.5 * s, 260.0), 70.0)
+    w = L_ * 0.62
+    cx, cy = p[0], p[1] - L_ * 0.15
+    glow(ctx, cx, cy - L_ * 0.5, L_ * 0.9, hexc('#ff2d2d'), 0.25)
+    poly(ctx, [(cx - w * 0.28, cy - L_), (cx + w * 0.28, cy - L_), (cx + w * 0.28, cy - L_ * 0.42), (cx + w * 0.55, cy - L_ * 0.42),
+               (cx, cy), (cx - w * 0.55, cy - L_ * 0.42), (cx - w * 0.28, cy - L_ * 0.42)])
+    fill_stroke(ctx, hexc('#ff2d2d'), (1, 1, 1), max(3.0, L_ * 0.05))
 
 
 def crumple(ctx, view, Lf, x, z, h, face):

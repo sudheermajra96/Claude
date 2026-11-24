@@ -11,7 +11,7 @@ def hero_expr(t):
 
 HERO = hero_car(const(LANES[1]), HS, hero_expr)
 CX = lane_key((0, 2), (T_C0, 2), (T_C1, 1), (99, 1))
-CUT = Veh(CX, const(33.0), T_C1, HERO.z(T_C1) + 4.5 + 4.0, '#e8e8ee', occ=occ_of('husb', lambda t: 'smug'))
+CUT = Veh(CX, const(33.0), T_C1, HERO.z(T_C1) + 4.5 + 4.0, '#e8e8ee', occ=occ_of('husb', lambda t: 'smug'), mark=lambda t: True)
 TRAF = filler([(0, 30), (0, -60), (3, 25), (3, -40), (2, 120), (0, 150), (3, 180), (2, -200)])
 FOL = Veh(LANES[1], HS, 0.0, -48.0, COLS[5])
 AG = [CUT, FOL] + TRAF + oncoming()
