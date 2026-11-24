@@ -486,6 +486,61 @@ def city_skyline(ctx, view, Z=2600.0, xc=0.0, n=22, seed=17, base='#7d6f86', haz
             ctx.fill()
 
 
+def cn_tower(ctx, view, X, Z, haze='#ffc89a', H=553.0):
+    """CN Tower landmark (far backdrop): tapering shaft, pod with the observation ring, upper pod and antenna."""
+    if view.ortho:
+        return
+    col = mix(hexc('#b9b4b8'), hexc(haze), 0.35)
+    dark = mix(hexc('#77727c'), hexc(haze), 0.35)
+
+    def P(x, y):
+        return view.pt((X + x, y, Z))
+    pts = [P(-14, 0), P(14, 0), P(4, 330), P(-4, 330)]
+    if not all(pts):
+        return
+    poly(ctx, pts)
+    setc(ctx, col)
+    ctx.fill()
+    for y0, y1, w in ((330, 352, 26), (352, 362, 20)):
+        q = [P(-w / 2, y0), P(w / 2, y0), P(w / 2 - 3, y1), P(-w / 2 + 3, y1)]
+        if all(q):
+            poly(ctx, q)
+            setc(ctx, dark if y0 == 330 else col)
+            ctx.fill()
+    q = [P(-3, 362), P(3, 362), P(2.5, 446), P(-2.5, 446)]
+    if all(q):
+        poly(ctx, q)
+        setc(ctx, col)
+        ctx.fill()
+    q = [P(-6, 446), P(6, 446), P(6, 456), P(-6, 456)]
+    if all(q):
+        poly(ctx, q)
+        setc(ctx, dark)
+        ctx.fill()
+    a_, b_ = P(0, 456), P(0, H)
+    if a_ and b_:
+        ctx.move_to(*a_)
+        ctx.line_to(*b_)
+        setc(ctx, col)
+        ctx.set_line_width(max(1.0, (view.scale((X, 400, Z)) or 0.1) * 2.2))
+        ctx.stroke()
+
+
+def toronto_far(Z=2600.0, xc=-120.0):
+    """Backdrop for Highway(far=...): downtown Toronto towers + the CN Tower."""
+    def far(ctx, view):
+        city_skyline(ctx, view, Z=Z, xc=xc, n=24, seed=21, base='#6c7a92', hmin=60, hmax=210)
+        cn_tower(ctx, view, xc + 140.0, Z - 30.0)
+    return far
+
+
+def city_401(gantry_z=(500.0, 1400.0)):
+    """Highway 401 (Toronto, Ontario) dressing for Highway(...)."""
+    return Highway(sky=('#3a6db5', '#ffd3a0'), grass='#8fae5f', hills='#7e9a63', far=toronto_far(), roadside='trees', seed=40,
+                   gantries=[(gantry_z[0], [(1.0, 8.0, '401 EXPRESS', 'Kingston'), (9.5, 16.5, 'EXIT 369', 'Yonge St')]),
+                             (gantry_z[1], [(1.0, 8.0, '401 EAST', 'Pickering'), (9.5, 16.5, 'EXIT 375', 'Bayview Ave')])])
+
+
 def cactus(ctx, view, x, z, s=1.0):
     """Saguaro (desert roadside)."""
     b, tp, sc = view.pt((x, 0, z)), view.pt((x, 4.2 * s, z)), view.scale((x, 0, z))
