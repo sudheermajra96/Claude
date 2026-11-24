@@ -232,7 +232,7 @@ def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False,
             sx = -1 if face == 'left' else 1
             fill_poly(ctx, view, [Lf(sx * 0.8, 0.84, -0.28), Lf(sx * 0.8, 0.84, -0.12), Lf(sx * 0.7, 1.38, -0.22), Lf(sx * 0.7, 1.38, -0.36)], body)
     amb, off = AMBER, hexc('#7a4a00')
-    sg = {'L': -1, 'R': 1}.get(blink)
+    sg = {'L': -1, 'R': 1, 'B': 0}.get(blink)   # 'B' = hazards
     if side_view:
         for face, sx in (('left', -1), ('right', 1)):
             if face in vis:
@@ -294,7 +294,7 @@ def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False,
             face_rect(ctx, view, Lf, 'back', s_ * 0.6 - 0.24, s_ * 0.6 + 0.24, 0.6, 0.76, -2.205,
                       hexc('#ff4040') if on else hexc('#b01818'), RED if on else None, 1.2)
             face_rect(ctx, view, Lf, 'back', s_ * 0.82 - 0.08, s_ * 0.82 + 0.08, 0.6, 0.76, -2.21,
-                      amb if sg == s_ else off, amb if sg == s_ else None, 1.4)
+                      amb if sg in (s_, 0) else off, amb if sg in (s_, 0) else None, 1.4)
         face_rect(ctx, view, Lf, 'back', -0.24, 0.24, 0.42, 0.55, -2.205, hexc('#eef0f4'))
         if rev:
             face_rect(ctx, view, Lf, 'back', -0.5, -0.36, 0.6, 0.72, -2.21, (1, 1, 1), WHITE_L, 1.0)
@@ -302,7 +302,7 @@ def draw_car_round(ctx, view, x, z, h, col, t, blink=None, brake=0.0, rev=False,
         for s_ in (-1, 1):
             face_rect(ctx, view, Lf, 'front', s_ * 0.6 - 0.22, s_ * 0.6 + 0.22, 0.6, 0.75, 2.205, hexc('#fff6d8'), WHITE_L, 0.5)
             face_rect(ctx, view, Lf, 'front', s_ * 0.85 - 0.06, s_ * 0.85 + 0.06, 0.6, 0.75, 2.21,
-                      amb if sg == s_ else off, amb if sg == s_ else None, 1.2)
+                      amb if sg in (s_, 0) else off, amb if sg in (s_, 0) else None, 1.2)
         face_rect(ctx, view, Lf, 'front', -0.32, 0.32, 0.45, 0.6, 2.205, dark)
     # bumpers + mirrors
     for zb, face in ((-2.24, 'back'), (2.24, 'front')):
