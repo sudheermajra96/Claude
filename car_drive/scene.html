@@ -1,6 +1,6 @@
 <!doctype html><html><head><style>html,body{margin:0;background:#000;overflow:hidden}
 #hud{position:absolute;inset:0;font-family:Arial,Helvetica,sans-serif;color:#fff;pointer-events:none}
-#tm{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:34px;font-weight:bold;text-shadow:2px 2px 3px #000}
+#tm{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:34px;font-weight:bold;text-shadow:2px 2px 3px #000}
 #sp{position:absolute;right:24px;bottom:20px;width:120px;height:120px;border-radius:50%;background:rgba(10,10,10,.7);border:4px solid #ccc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:bold}
 #sp b{font-size:40px}#sp span{font-size:13px;color:#fc3}
 #bar{position:absolute;left:18px;top:60px;width:14px;height:240px;background:rgba(0,0,0,.5);border:2px solid #ddd}
@@ -9,17 +9,17 @@
 <div id="hud"><div id="tm"></div><div id="bar"><div id="fill"></div></div><div id="sp"><b id="kmh">0</b><span>KM/H</span></div></div>
 <script src="three.min.js"></script>
 <script>
-const W=960,H=540;let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const Q=new URLSearchParams(location.search);const W=+Q.get('w')||1080,H=+Q.get('h')||1080;let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-renderer.setSize(W,H);renderer.shadowMap.enabled=true;document.body.prepend(renderer.domElement);
-const scene=new THREE.Scene();scene.background=new THREE.Color(0xa9c4dc);scene.fog=new THREE.Fog(0xb7c9d8,60,260);
-const cam=new THREE.PerspectiveCamera(55,W/H,0.5,400);
-scene.add(new THREE.HemisphereLight(0xdde8ff,0x555046,0.9));
-const sun=new THREE.DirectionalLight(0xfff3dd,1.0);sun.position.set(-30,60,20);sun.castShadow=true;
+renderer.setSize(W,H);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene();scene.background=tex(4,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#4f86c6');gr.addColorStop(.55,'#9cc0e0');gr.addColorStop(1,'#f1dcc0');g.fillStyle=gr;g.fillRect(0,0,w,h);});scene.fog=new THREE.Fog(0xd9d4cc,70,280);
+const cam=new THREE.PerspectiveCamera(62,W/H,0.5,400);
+scene.add(new THREE.HemisphereLight(0xcfe0ff,0x6b5a48,1.6));scene.add(new THREE.AmbientLight(0xffffff,0.25));
+const sun=new THREE.DirectionalLight(0xffdcae,2.8);sun.position.set(-40,45,10);sun.shadow.bias=-0.0004;sun.shadow.radius=3;sun.castShadow=true;
 sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-40,right:40,top:40,bottom:-40,far:200});
 scene.add(sun);scene.add(sun.target);
 function tex(w,h,draw,rx=1,ry=1){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
- const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=8;return t;}
+ const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=8;t.colorSpace=THREE.SRGBColorSpace;return t;}
 // asphalt with lane markings, road half = 3 lanes of 3.5 = 10.5 wide
 const L=900;
 const roadTex=tex(256,512,(g,w,h)=>{g.fillStyle='#3a3b3e';g.fillRect(0,0,w,h);
@@ -89,32 +89,32 @@ function car(color,type){const g=new THREE.Group();const bm=new THREE.MeshPhongM
 // player
 const player=car(0xd95a1a,'hatch');
 const lanes=[1.75+0.8,5.25+0.8,8.75+0.8];const V=24;// m/s player
-const plan=[[0,1],[1.6,0],[3.6,1],[5.2,2],[7.0,1]];// lane change times
+const plan=[[0,1],[1.6,0],[3.6,1],[5.2,2],[7.0,1],[8.6,0]];// lane change times
 function smooth(x){x=Math.min(1,Math.max(0,x));return x*x*(3-2*x);}
 function px(t){let x=lanes[plan[0][1]];for(let i=1;i<plan.length;i++){const k=smooth((t-plan[i][0])/0.9);x+=(lanes[plan[i][1]]-lanes[plan[i-1][1]])*k;}return x;}
 const colors=[0xffffff,0xe8e8e8,0x1a1a1a,0x2e5fb0,0xc22b2b,0xf0a8d0,0x6fa0d8,0xd0d0d0,0xe07a20,0x3a3a3a];
 const types=['sedan','sedan','hatch','van','sport','sedan','hatch','truck','bus'];
 const traffic=[];
 // same direction: speed 9-14, start z ahead. Avoid player's lane when player passes.
-for(let i=0;i<22;i++){const v=8+rnd()*6,z0=-12-i*11-rnd()*6;const ty=types[rnd()*types.length|0];
+for(let i=0;i<30;i++){const v=8+rnd()*6,z0=-12-i*11-rnd()*6;const ty=types[rnd()*types.length|0];
  // time player reaches: -V t = z0 - v t -> t = -z0/(V-v)
  const tp=-z0/(V-v);let lane=rnd()*3|0;const pl=px(tp);
  const okLane=l=>[-0.6,-0.3,0,0.3,0.6].every(d=>Math.abs(px(tp+d)-lanes[l])>2.6);
  if(!okLane(lane)){const alt=[0,1,2].filter(okLane);if(!alt.length)continue;lane=alt[rnd()*alt.length|0];}
  const c=car(colors[rnd()*colors.length|0],ty);traffic.push({m:c,x:lanes[lane],z0,v});}
 // oncoming
-for(let i=0;i<26;i++){const ty=types[rnd()*types.length|0];const c=car(colors[rnd()*colors.length|0],ty);c.rotation.y=Math.PI;
+for(let i=0;i<32;i++){const ty=types[rnd()*types.length|0];const c=car(colors[rnd()*colors.length|0],ty);c.rotation.y=Math.PI;
  traffic.push({m:c,x:-lanes[rnd()*3|0],z0:-30-i*20-rnd()*10,v:-(12+rnd()*6)});}
-const T=8;
+const T=10;
 window.renderFrame=function(t){
  const pz=-V*t,x=px(t),dx=(px(t+0.05)-px(t-0.05))/0.1;
  player.position.set(x,0,pz);player.rotation.y=-Math.atan2(dx,V)*1.0;player.rotation.z=-dx*0.01;
  for(const o of traffic){o.m.position.set(o.x,0,o.z0-o.v*t);}
- const cx=x*0.7+lanes[1]*0.3;cam.position.set(cx,4.3,pz+8.5);cam.lookAt(cx*0.85+x*0.15,1.2,pz-8);
- sun.position.set(-30+x,60,pz+20);sun.target.position.set(x,0,pz-10);
+ const cx=x*0.7+lanes[1]*0.3;cam.position.set(cx,4.8,pz+9.5);cam.lookAt(cx*0.85+x*0.15,1.2,pz-8);
+ sun.position.set(-40+x,45,pz+10);sun.target.position.set(x,0,pz-10);
  const s=t*1.0;document.getElementById('tm').textContent=`${Math.floor((170-s)/60)}:${String(((170-s)%60).toFixed(2)).padStart(5,'0')}`;
  document.getElementById('kmh').textContent=Math.round(V*3.6+Math.sin(t*2)*2);
- document.getElementById('fill').style.height=(80-t*3)+'%';
+ document.getElementById('fill').style.height=(85-t*3)+'%';
  renderer.render(scene,cam);};
 window.renderFrame(0);window.ready=true;
 </script></body></html>
