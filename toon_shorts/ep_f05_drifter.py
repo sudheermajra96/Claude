@@ -38,11 +38,11 @@ def side_gap():
 
 defs = [
     (3.0, 'cine', dict(cam='heli', target=DRIFT, R=16.0, H=9.0, a0=-2.6, w=0.16, f=950, oz=0.0, dt=6.2)),
-    (6.0, 'cine', dict(cam='heli', target=HERO, R=24.0, H=10.0, a0=-2.4, w=0.16, f=1000, oz=18.0)),
+    (6.0, 'cine', dict(cam='heli', target=HERO, R=24.0, H=10.0, a0=-2.4, w=0.16, f=1000, oz=8.0)),
     (9.0, 'cine', dict(cam='track', target=DRIFT, off=(-3.4, 1.3, -6.0), look=(0.5, 0.9, 6.0), f=740, shake=0.07, flare=0.4)),
     (11.5, 'dash_face', dict(expr='annoyed', turn=lambda lt: 0.2 * math.sin(lt * 2))),
     (14.0, 'interior_mirror', dict(f=1100)),
-    (16.5, 'cine', dict(cam='heli', target=HERO, R=20.0, H=9.0, a0=-2.0, w=0.16, f=1000, oz=4.0)),
+    (16.5, 'cine', dict(cam='heli', target=HERO, R=26.0, H=11.0, a0=-2.0, w=0.14, f=1000, oz=6.0)),
     (19.0, 'cine', dict(cam='tele', target=HERO, off=(-1.0, 3.5, 60.0), tx=1.5, tz=-10.0, f=2200)),
     (22.0, 'cine', dict(cam='crane', target=HERO, ox=6.0, oz0=-26.0, oz1=-36.0, y0=2.0, y1=22.0, tz=160.0, f=1000)),
 ]
