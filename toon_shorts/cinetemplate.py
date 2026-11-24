@@ -81,9 +81,10 @@ EP = types.SimpleNamespace(hero=None, glare=lambda t: False, shadows=[], tm=Time
 # ------------------------------------------------------------------ vehicles
 class Veh(Track):
     def __init__(self, x, speed, ta, za, col, kind='car', occ=None, flash=None, police=None, brake=None, blink=None,
-                 trailer=('#f4f4f6', '#e0393e', 'PEACH STATE'), cab='#2f6f9f', t0=-3, t1=80):
+                 trailer=('#f4f4f6', '#e0393e', 'PEACH STATE'), cab='#2f6f9f', t0=-3, t1=80, damage=None):
         super().__init__(x, speed, ta, za, col, brake=brake, blink=blink, t0=t0, t1=t1)
         self.kind, self.occ, self.flash, self.police, self.trailer, self.cab = kind, occ, flash, police, trailer, cab
+        self.damage = damage or []           # [('front' | 'back', world t of impact)]
         self.ext = (-15.5, 5.6, 1.3, 4.0) if kind == 'semi' else (-2.25, 2.25, 0.95, 1.45)
 
     def items(self, ctx, view, t):
@@ -111,6 +112,10 @@ class Veh(Track):
                     p, s = view.pt(P), view.scale(P)
                     if p and s and view.to_cam(P)[2] > 0 and (math.sin(h) * (view.pos[0] - x) + math.cos(h) * (view.pos[2] - z)) > 0:
                         glow(ctx, p[0], p[1], min(1.2 * s + 30, 200), (1.0, 0.97, 0.85), 0.9)
+            if self.damage:
+                for face, t_d in self.damage:
+                    if t >= t_d:
+                        crumple(ctx, view, Lf, x, z, h, face)
             if self.police and self.police(t):
                 on = (t * 2.6) % 1 < 0.5
                 for sx, col in ((-0.3, (1.0, 0.15, 0.15)), (0.3, (0.2, 0.35, 1.0))):
@@ -123,6 +128,135 @@ class Veh(Track):
                         if lit_:
                             glow(ctx, p[0], p[1], min(0.8 * s + 26, 120), col, 0.85)
         return [((x, 0.8, z), fn)]
+
+
+def crumple(ctx, view, Lf, x, z, h, face):
+    """Crushed bumper: jagged dark dent + crack lines on the front or back face (only when that face is seen)."""
+    sz = 1 if face == 'front' else -1
+    if (math.sin(h) * (view.pos[0] - x) + math.cos(h) * (view.pos[2] - z)) * sz <= 0:
+        return
+    zf = sz * 2.27
+    rnd = random.Random(7 if sz > 0 else 9)
+    top = [Lf(-0.82 + 1.64 * i / 8, 0.95 + rnd.uniform(-0.12, 0.1), zf) for i in range(9)]
+    bot = [Lf(0.82 - 1.64 * i / 8, 0.28 + rnd.uniform(-0.05, 0.08), zf) for i in range(9)]
+    pts = [view.pt(P) for P in top + bot]
+    if not all(pts):
+        return
+    poly(ctx, pts)
+    setc(ctx, hexc('#3a3b44'), 0.85)
+    ctx.fill_preserve()
+    setc(ctx, OUTL)
+    ctx.set_line_width(2)
+    ctx.stroke()
+    for k in range(4):
+        a, b = view.pt(Lf(-0.6 + k * 0.4, 0.9, zf)), view.pt(Lf(-0.5 + k * 0.38, 0.4, zf))
+        if a and b:
+            ctx.move_to(*a)
+            ctx.line_to(*b)
+            setc(ctx, (0.85, 0.85, 0.9), 0.7)
+            ctx.set_line_width(2)
+            ctx.stroke()
+
+
+class CrashFX:
+    """Impact flash, flying debris and rising steam at a world point. point_fn(t) -> (x, y, z)."""
+
+    def __init__(self, t_imp, point_fn, steam=6.0):
+        self.ti, self.pf, self.steam = t_imp, point_fn, steam
+        r = random.Random(3)
+        self.bits = [(r.uniform(-4, 4), r.uniform(2, 6), r.uniform(-3, 5), r.choice(['#2b2b33', '#c9c9d6', '#ff9b3a', '#e23b3b'])) for _ in range(26)]
+        self.col, self.ext = '#000', (0, 0, 0, 0)
+
+    def visible(self, t):
+        return True
+
+    def pose(self, t):
+        x, y, z = self.pf(self.ti)
+        return x, z, 0.0
+
+    def items(self, ctx, view, t):
+        u = t - self.ti
+        if view.ortho or u < 0:
+            return []
+        X, Y, Z = self.pf(self.ti)
+        out = []
+        if u < 0.35:
+            def flash():
+                p, s = view.pt((X, Y, Z)), view.scale((X, Y, Z))
+                if p and s:
+                    glow(ctx, p[0], p[1], min(4.0 * s * (1 - u / 0.35) + 40, 700), (1.0, 0.95, 0.8), 0.9)
+            out.append(((X, Y, Z - 0.1), flash))
+        if u < 1.6:
+            for vx, vy, vz, col in self.bits:
+                P = (X + vx * u, max(0.05, Y + vy * u - 4.9 * u * u), Z + vz * u)
+
+                def bit(P=P, col=col):
+                    p, s = view.pt(P), view.scale(P)
+                    if p and s:
+                        rrect(ctx, p[0] - 0.09 * s, p[1] - 0.05 * s, 0.18 * s, 0.1 * s, 0.03 * s)
+                        fill_stroke(ctx, hexc(col), OUTL, 1)
+                out.append((P, bit))
+        for k in range(int(min(u, self.steam) / 0.25)):
+            age = u - k * 0.25
+            if age > 3.0:
+                continue
+            P = (X + 0.4 * math.sin(k * 1.7), Y + 0.3 + age * 1.1, Z - 0.6 + 0.3 * age)
+
+            def puff(P=P, age=age):
+                p, s = view.pt(P), view.scale(P)
+                if p and s:
+                    ellipse(ctx, p[0], p[1], (0.35 + age * 0.5) * s, (0.3 + age * 0.4) * s)
+                    setc(ctx, (0.93, 0.93, 0.95), max(0.0, 0.5 - age * 0.16))
+                    ctx.fill()
+            out.append((P, puff))
+        return out
+
+
+def follow_sim(lead_v, gap0, react, decel, t_brake, t0=-3.0, t1=60.0, dt=1 / 240, bounce=1.0, post_decel=None):
+    """Lead (speed key) + follower starting gap0 m (bumper) behind at the lead's speed; follower brakes `react` s after
+    t_brake at `decel`. Inelastic rear-end impact (equal masses) with a small bounce. Returns (lead_z(t), foll_z(t),
+    t_impact, closing speed m/s, lead_v_after(t), foll_v_after(t))."""
+    ts = np.arange(t0, t1, dt)
+    zl, zf, vl_, vf_ = [0.0], [-(4.5 + gap0)], [lead_v(t0)], [lead_v(t0)]
+    hit, vrel = None, 0.0
+    vl, vf = lead_v(t0), lead_v(t0)
+    pd = post_decel or decel
+    for t in ts[1:]:
+        if hit is None:
+            vl = max(0.0, lead_v(t))
+            vf = vf if t < t_brake + react else max(0.0, vf - decel * dt)
+            if t < t_brake + react:
+                vf = lead_v(t) if t < t_brake else vf
+        else:
+            vl, vf = max(0.0, vl - pd * dt), max(0.0, vf - pd * dt)
+        zl.append(zl[-1] + vl * dt)
+        zf.append(zf[-1] + vf * dt)
+        if hit is None and zl[-1] - zf[-1] <= 4.5:
+            hit, vrel = t, vf - vl
+            vc = (vl + vf) / 2
+            vl, vf = vc + bounce, vc - bounce
+            zf[-1] = zl[-1] - 4.5
+        vl_.append(vl)
+        vf_.append(vf)
+    zl, zf = np.array(zl), np.array(zf)
+    return (lambda t: float(np.interp(t, ts, zl)), lambda t: float(np.interp(t, ts, zf)), hit, vrel,
+            lambda t: float(np.interp(t, ts, vl_)), lambda t: float(np.interp(t, ts, vf_)))
+
+
+class SimCar(Veh):
+    """Veh driven by a z(t) function (from follow_sim) instead of a speed key."""
+
+    def __init__(self, x, zfn, vfn, col, **kw):
+        super().__init__(x, const(V), 0.0, 0.0, col, **kw)
+        self.zfn, self.vfn = zfn, vfn
+        if 'brake' not in kw:
+            self.brake = lambda t: 1.0 if self.vfn(t + 0.1) < self.vfn(t) - 0.02 or self.vfn(t) < 0.05 else 0.0
+
+    def z(self, t):
+        return self.zfn(t)
+
+    def speed(self, t):
+        return self.vfn(t)
 
 
 class Rev:
@@ -543,7 +677,7 @@ def _dash_edge(ctx):
     ctx.curve_to(400, 1262, 1520, 1262, CANVAS + 10, 1290)
 
 
-def cabin(ctx, steer, mph=None):
+def cabin(ctx, steer, mph=None, hands=True, sleeve=None):
     """Clean animated cockpit: thin roof, slanted A-pillars, glossy dash band with gauge hood, centre screen,
     vents, red accent lights and a full steering wheel on the left (turns with steer)."""
     # roof strip
@@ -679,6 +813,50 @@ def cabin(ctx, steer, mph=None):
             setc(ctx, CK_RED)
             ctx.fill()
     ctx.restore()
+    if hands:
+        cabin_hands(ctx, steer, sleeve or JACKET)
+
+
+def cabin_hands(ctx, steer, sleeve):
+    """Two hands gripping the rim at 10 and 2 o'clock, forearms in sleeves coming up from the bottom edge."""
+    wx, wy = WHEEL_C
+    sh = mix(sleeve, (0, 0, 0), 0.25)
+    for sg, deg in ((-1, -55), (1, 55)):
+        r = math.radians(deg) + steer * 0.5
+        hx, hy = wx + math.sin(r) * 318, wy - math.cos(r) * 298
+        bx = wx + sg * 330
+        # forearm (tapered) + cuff
+        nx, ny = hy - (CANVAS + 40), -(hx - bx)
+        n = math.hypot(nx, ny) or 1
+        nx, ny = nx / n, ny / n
+        poly(ctx, [(bx + nx * 95, CANVAS + 40 + ny * 95), (hx + nx * 52, hy + 40 + ny * 52),
+                   (hx - nx * 52, hy + 40 - ny * 52), (bx - nx * 95, CANVAS + 40 - ny * 95)])
+        fill_stroke(ctx, sleeve, OUTL, 5)
+        ctx.move_to(bx - nx * 40, CANVAS + 40 - ny * 40)
+        ctx.line_to(hx - nx * 20, hy + 70 - ny * 20)
+        setc(ctx, sh)
+        ctx.set_line_width(12)
+        ctx.stroke()
+        ctx.move_to(hx + nx * 56, hy + 58 + ny * 56)
+        ctx.line_to(hx - nx * 56, hy + 58 - ny * 56)
+        setc(ctx, sh)
+        ctx.set_line_width(16)
+        ctx.stroke()
+        # fist wrapped over the rim
+        ctx.save()
+        ctx.translate(hx, hy)
+        ctx.rotate(r)
+        rrect(ctx, -54, -46, 108, 96, 38)
+        fill_stroke(ctx, SKIN, OUTL, 5)
+        for i in range(3):
+            ctx.move_to(-28 + i * 28, -42)
+            ctx.line_to(-28 + i * 28, -14)
+        setc(ctx, SKIN_SH)
+        ctx.set_line_width(4)
+        ctx.stroke()
+        ellipse(ctx, -sg * 40, 4, 22, 34, 0.3 * sg)          # thumb over the rim
+        fill_stroke(ctx, SKIN, OUTL, 4)
+        ctx.restore()
 
 
 def interior_mirror(ctx, w, t, lt, kw):
@@ -690,7 +868,7 @@ def interior_mirror(ctx, w, t, lt, kw):
     draw_scene(ctx, view, w, t, ego=False)
     warm_haze(ctx, view, CANVAS)
     sun_flare(ctx, view, CANVAS, CANVAS, 0.8)
-    cabin(ctx, H.steer(t), H.speed(t) * 2.237)
+    cabin(ctx, H.steer(t), H.speed(t) * 2.237, kw.get('hands', True), kw.get('sleeve'))
     if kw.get('mirror', True):
         mx, my, mw, mh = MIRROR_R
         ctx.move_to(960, 0)
